@@ -1,0 +1,356 @@
+{
+  "version": "1.0.0",
+  "annotation_status": "source_rule_draft_requires_independent_review",
+  "reference_set_complete": false,
+  "policy": "固定人工规则选择名称/描述可支持的已知正例，不使用待测检索器或模型生成标签；非完整相关性标注。",
+  "labels": {
+    "mountain_100": {
+      "product_ids": [
+        771,
+        772,
+        773,
+        774,
+        775,
+        776,
+        777,
+        778
+      ],
+      "source_evidence": [
+        {
+          "product_id": 771,
+          "name": "Mountain-100 Silver, 38",
+          "product_number": "BK-M82S-38",
+          "list_price": "3399.9900",
+          "description_en": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain.",
+          "description_zh": "高档竞赛山地车。性能得到进一步增强，包括创新的 HL 车架、极其平稳的前悬架以及适用于所有地形的出色牵引力。"
+        },
+        {
+          "product_id": 772,
+          "name": "Mountain-100 Silver, 42",
+          "product_number": "BK-M82S-42",
+          "list_price": "3399.9900",
+          "description_en": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain.",
+          "description_zh": "高档竞赛山地车。性能得到进一步增强，包括创新的 HL 车架、极其平稳的前悬架以及适用于所有地形的出色牵引力。"
+        },
+        {
+          "product_id": 773,
+          "name": "Mountain-100 Silver, 44",
+          "product_number": "BK-M82S-44",
+          "list_price": "3399.9900",
+          "description_en": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain.",
+          "description_zh": "高档竞赛山地车。性能得到进一步增强，包括创新的 HL 车架、极其平稳的前悬架以及适用于所有地形的出色牵引力。"
+        },
+        {
+          "product_id": 774,
+          "name": "Mountain-100 Silver, 48",
+          "product_number": "BK-M82S-48",
+          "list_price": "3399.9900",
+          "description_en": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain.",
+          "description_zh": "高档竞赛山地车。性能得到进一步增强，包括创新的 HL 车架、极其平稳的前悬架以及适用于所有地形的出色牵引力。"
+        },
+        {
+          "product_id": 775,
+          "name": "Mountain-100 Black, 38",
+          "product_number": "BK-M82B-38",
+          "list_price": "3374.9900",
+          "description_en": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain.",
+          "description_zh": "高档竞赛山地车。性能得到进一步增强，包括创新的 HL 车架、极其平稳的前悬架以及适用于所有地形的出色牵引力。"
+        },
+        {
+          "product_id": 776,
+          "name": "Mountain-100 Black, 42",
+          "product_number": "BK-M82B-42",
+          "list_price": "3374.9900",
+          "description_en": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain.",
+          "description_zh": "高档竞赛山地车。性能得到进一步增强，包括创新的 HL 车架、极其平稳的前悬架以及适用于所有地形的出色牵引力。"
+        },
+        {
+          "product_id": 777,
+          "name": "Mountain-100 Black, 44",
+          "product_number": "BK-M82B-44",
+          "list_price": "3374.9900",
+          "description_en": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain.",
+          "description_zh": "高档竞赛山地车。性能得到进一步增强，包括创新的 HL 车架、极其平稳的前悬架以及适用于所有地形的出色牵引力。"
+        },
+        {
+          "product_id": 778,
+          "name": "Mountain-100 Black, 48",
+          "product_number": "BK-M82B-48",
+          "list_price": "3374.9900",
+          "description_en": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain.",
+          "description_zh": "高档竞赛山地车。性能得到进一步增强，包括创新的 HL 车架、极其平稳的前悬架以及适用于所有地形的出色牵引力。"
+        }
+      ]
+    },
+    "road_150": {
+      "product_ids": [
+        749,
+        750,
+        751,
+        752,
+        753
+      ],
+      "source_evidence": [
+        {
+          "product_id": 749,
+          "name": "Road-150 Red, 62",
+          "product_number": "BK-R93R-62",
+          "list_price": "3578.2700",
+          "description_en": "This bike is ridden by race winners. Developed with the Adventure Works Cycles professional race team, it has a extremely light heat-treated aluminum frame, and steering that allows precision control.",
+          "description_zh": "此自行车曾为赛车手夺冠立下汗马功劳。与 Adventure Works Cycles 专业赛车队联合设计，它的铝制车架极其轻巧且经过热处理，操纵装置可以实现精准控制。"
+        },
+        {
+          "product_id": 750,
+          "name": "Road-150 Red, 44",
+          "product_number": "BK-R93R-44",
+          "list_price": "3578.2700",
+          "description_en": "This bike is ridden by race winners. Developed with the Adventure Works Cycles professional race team, it has a extremely light heat-treated aluminum frame, and steering that allows precision control.",
+          "description_zh": "此自行车曾为赛车手夺冠立下汗马功劳。与 Adventure Works Cycles 专业赛车队联合设计，它的铝制车架极其轻巧且经过热处理，操纵装置可以实现精准控制。"
+        },
+        {
+          "product_id": 751,
+          "name": "Road-150 Red, 48",
+          "product_number": "BK-R93R-48",
+          "list_price": "3578.2700",
+          "description_en": "This bike is ridden by race winners. Developed with the Adventure Works Cycles professional race team, it has a extremely light heat-treated aluminum frame, and steering that allows precision control.",
+          "description_zh": "此自行车曾为赛车手夺冠立下汗马功劳。与 Adventure Works Cycles 专业赛车队联合设计，它的铝制车架极其轻巧且经过热处理，操纵装置可以实现精准控制。"
+        },
+        {
+          "product_id": 752,
+          "name": "Road-150 Red, 52",
+          "product_number": "BK-R93R-52",
+          "list_price": "3578.2700",
+          "description_en": "This bike is ridden by race winners. Developed with the Adventure Works Cycles professional race team, it has a extremely light heat-treated aluminum frame, and steering that allows precision control.",
+          "description_zh": "此自行车曾为赛车手夺冠立下汗马功劳。与 Adventure Works Cycles 专业赛车队联合设计，它的铝制车架极其轻巧且经过热处理，操纵装置可以实现精准控制。"
+        },
+        {
+          "product_id": 753,
+          "name": "Road-150 Red, 56",
+          "product_number": "BK-R93R-56",
+          "list_price": "3578.2700",
+          "description_en": "This bike is ridden by race winners. Developed with the Adventure Works Cycles professional race team, it has a extremely light heat-treated aluminum frame, and steering that allows precision control.",
+          "description_zh": "此自行车曾为赛车手夺冠立下汗马功劳。与 Adventure Works Cycles 专业赛车队联合设计，它的铝制车架极其轻巧且经过热处理，操纵装置可以实现精准控制。"
+        }
+      ]
+    },
+    "bottle_30": {
+      "product_ids": [
+        870
+      ],
+      "source_evidence": [
+        {
+          "product_id": 870,
+          "name": "Water Bottle - 30 oz.",
+          "product_number": "WB-H098",
+          "list_price": "4.9900",
+          "description_en": "AWC logo water bottle - holds 30 oz; leak-proof.",
+          "description_zh": "带有 AWC 徽标的水瓶容量为 30 盎司；防漏设计。"
+        }
+      ]
+    },
+    "helmet": {
+      "product_ids": [
+        707,
+        708,
+        711
+      ],
+      "source_evidence": [
+        {
+          "product_id": 707,
+          "name": "Sport-100 Helmet, Red",
+          "product_number": "HL-U509-R",
+          "list_price": "34.9900",
+          "description_en": "Universal fit, well-vented, lightweight , snap-on visor.",
+          "description_zh": "通用型透气良好且轻便，带有自合型帽沿。"
+        },
+        {
+          "product_id": 708,
+          "name": "Sport-100 Helmet, Black",
+          "product_number": "HL-U509",
+          "list_price": "34.9900",
+          "description_en": "Universal fit, well-vented, lightweight , snap-on visor.",
+          "description_zh": "通用型透气良好且轻便，带有自合型帽沿。"
+        },
+        {
+          "product_id": 711,
+          "name": "Sport-100 Helmet, Blue",
+          "product_number": "HL-U509-B",
+          "list_price": "34.9900",
+          "description_en": "Universal fit, well-vented, lightweight , snap-on visor.",
+          "description_zh": "通用型透气良好且轻便，带有自合型帽沿。"
+        }
+      ]
+    },
+    "long_distance_bar": {
+      "product_ids": [
+        947
+      ],
+      "source_evidence": [
+        {
+          "product_id": 947,
+          "name": "HL Touring Handlebars",
+          "product_number": "HB-T928",
+          "list_price": "91.5700",
+          "description_en": "A light yet stiff aluminum bar for long distance riding.",
+          "description_zh": "轻且坚固的铝制车把适用于长途骑乘。"
+        }
+      ]
+    },
+    "fatigue_bar": {
+      "product_ids": [
+        946
+      ],
+      "source_evidence": [
+        {
+          "product_id": 946,
+          "name": "LL Touring Handlebars",
+          "product_number": "HB-T721",
+          "list_price": "46.0900",
+          "description_en": "Unique shape reduces fatigue for entry level riders.",
+          "description_zh": "独特的外形设计有助于减轻入门级骑乘者的疲劳。"
+        }
+      ]
+    },
+    "self_sealing_tube": {
+      "product_ids": [
+        921
+      ],
+      "source_evidence": [
+        {
+          "product_id": 921,
+          "name": "Mountain Tire Tube",
+          "product_number": "TT-M928",
+          "list_price": "4.9900",
+          "description_en": "Self-sealing tube.",
+          "description_zh": "自封内胎。"
+        }
+      ]
+    },
+    "road_tube": {
+      "product_ids": [
+        922
+      ],
+      "source_evidence": [
+        {
+          "product_id": 922,
+          "name": "Road Tire Tube",
+          "product_number": "TT-R982",
+          "list_price": "3.9900",
+          "description_en": "Conventional all-purpose tube.",
+          "description_zh": "常规的全功能内胎。"
+        }
+      ]
+    },
+    "touring_tube": {
+      "product_ids": [
+        923
+      ],
+      "source_evidence": [
+        {
+          "product_id": 923,
+          "name": "Touring Tire Tube",
+          "product_number": "TT-T092",
+          "list_price": "4.9900",
+          "description_en": "General purpose tube.",
+          "description_zh": "一般用内胎。"
+        }
+      ]
+    },
+    "touring_3000": {
+      "product_ids": [
+        958,
+        959,
+        960,
+        961,
+        962,
+        963,
+        964,
+        965,
+        978,
+        979
+      ],
+      "source_evidence": [
+        {
+          "product_id": 958,
+          "name": "Touring-3000 Blue, 54",
+          "product_number": "BK-T18U-54",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 959,
+          "name": "Touring-3000 Blue, 58",
+          "product_number": "BK-T18U-58",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 960,
+          "name": "Touring-3000 Blue, 62",
+          "product_number": "BK-T18U-62",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 961,
+          "name": "Touring-3000 Yellow, 44",
+          "product_number": "BK-T18Y-44",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 962,
+          "name": "Touring-3000 Yellow, 50",
+          "product_number": "BK-T18Y-50",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 963,
+          "name": "Touring-3000 Yellow, 54",
+          "product_number": "BK-T18Y-54",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 964,
+          "name": "Touring-3000 Yellow, 58",
+          "product_number": "BK-T18Y-58",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 965,
+          "name": "Touring-3000 Yellow, 62",
+          "product_number": "BK-T18Y-62",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 978,
+          "name": "Touring-3000 Blue, 44",
+          "product_number": "BK-T18U-44",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        },
+        {
+          "product_id": 979,
+          "name": "Touring-3000 Blue, 50",
+          "product_number": "BK-T18U-50",
+          "list_price": "742.3500",
+          "description_en": "All-occasion value bike with our basic comfort and safety features. Offers wider, more stable tires for a ride around town or weekend trip.",
+          "description_zh": "全能经济型自行车，具备基本的舒适和安全特征。提供了更宽也更稳固的轮胎，适用于环城游或周末旅行。"
+        }
+      ]
+    }
+  }
+}

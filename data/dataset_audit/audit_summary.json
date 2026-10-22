@@ -1,0 +1,34 @@
+{
+  "source": "https://github.com/microsoft/sql-server-samples/tree/master/samples/databases/adventure-works/oltp-install-script",
+  "dataset_type": "fictitious Microsoft OLTP sample",
+  "counts": {
+    "products": 504,
+    "orders": 31465,
+    "order_items": 121317,
+    "description_rows_all_languages": 762,
+    "english_models": 127,
+    "products_with_english_description": 294,
+    "distinct_products_in_orders": 266,
+    "ordered_products_with_english_description": 265
+  },
+  "status_distribution": {
+    "5": 31465
+  },
+  "description_cultures": {
+    "en": 127,
+    "ar": 127,
+    "fr": 127,
+    "th": 127,
+    "he": 127,
+    "zh-cht": 127
+  },
+  "orphan_order_items": 0,
+  "missing_product_references": 0,
+  "order_item_description_coverage": 121204,
+  "sample": {
+    "order_id": "43659",
+    "product_id": "776",
+    "product_name": "Mountain-100 Black, 42",
+    "description": "Top-of-the-line competition mountain bike. Performance-enhancing options include the innovative HL Frame, super-smooth front suspension, and traction for all terrain."
+  }
+}

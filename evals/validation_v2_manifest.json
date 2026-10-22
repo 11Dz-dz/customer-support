@@ -1,0 +1,10 @@
+{
+  "version": "validation_v2",
+  "frozen_at": "2026-10-22T06:46:38.643235+00:00",
+  "case_count": 8,
+  "turn_count": 17,
+  "sha256": "194789c1fcb2872e9c113b7318f5c886d9b79936b071e9281a98bc5ac00660c9",
+  "first_live_run_used_for_tuning": false,
+  "authorship": "implementation assistant; authored after v1 results, before follow-up fixes; not independent human data",
+  "policy": "v1 remains first-result evidence and becomes regression if used to fix. v2 is a fresh wording check, not an independent third-party blind test."
+}

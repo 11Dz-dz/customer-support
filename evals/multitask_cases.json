@@ -1,0 +1,37 @@
+[
+  {"id":"X01","actor":"owner","turns":[
+    {"input":"推荐一款自行车，再查一下我的订单。","tools":["search_products"],"waiting":1,"task_count":2,"displayed_products":1},
+    {"input":"{own_order}","exact_tools":["query_order"],"waiting":0}
+  ]},
+  {"id":"X02","actor":"owner","turns":[
+    {"input":"介绍商品915，并查询订单{own_order}的状态。","exact_tools":["get_product_info","query_order"],"task_count":2,"waiting":0}
+  ]},
+  {"id":"X03","actor":"owner","turns":[
+    {"input":"查询订单{own_order}，然后介绍这个订单里的商品。","exact_tools":["query_order","get_product_info"],"task_count":2,"waiting":0,"derived_products":[776]}
+  ]},
+  {"id":"X04","actor":"owner","turns":[
+    {"input":"查询订单{foreign_order}，然后介绍这个订单里的商品。","exact_tools":["query_order"],"task_count":2,"denied":1,"blocked":1,"forbidden_text":"商品749"}
+  ]},
+  {"id":"X05","actor":"owner","turns":[
+    {"input":"分别查询订单{own_order}和订单43659的状态，不要只查一笔。","exact_tools":["query_order","query_order"],"task_count":2,"waiting":0}
+  ]},
+  {"id":"X06","actor":"owner","turns":[
+    {"input":"介绍商品915，再查一下我的订单，订单号我下一条给你。","exact_tools":["get_product_info"],"waiting":1,"task_count":2},
+    {"input":"取消订单查询任务，刚才的商品介绍保留。","exact_tools":[],"cancelled":1,"waiting":0}
+  ]},
+  {"id":"X07","actor":"owner","turns":[
+    {"input":"我有两笔不同订单，请分别查它们的状态，两个订单号我之后再提供。先保留这两项查询。","exact_tools":[],"waiting":2,"task_count":2},
+    {"input":"{own_order}","exact_tools":[],"waiting":2},
+    {"input":"这个编号对应第一项订单查询，订单号是{own_order}。","exact_tools":["query_order"],"waiting":1}
+  ]},
+  {"id":"X08","actor":"owner","turns":[
+    {"input":"查一下我的订单，然后介绍这个订单中的商品。订单号下一条再给。","exact_tools":[],"waiting":1,"blocked":1,"task_count":2},
+    {"input":"{own_order}","exact_tools":["query_order","get_product_info"],"waiting":0,"blocked":0,"derived_products":[776]}
+  ]},
+  {"id":"X09","actor":"owner","turns":[
+    {"input":"有没有1元以内的商品？同时查询订单{own_order}的状态，再解释一下HTTP 404是什么意思。","exact_tools":["query_products","query_order","search_error_code"],"task_count":3,"waiting":0}
+  ]},
+  {"id":"X10","actor":"guest","turns":[
+    {"input":"介绍一下商品915，再按这款商品的目录标价算买两件多少钱，不含税和运费。","exact_tools":["get_product_info","calculate_price"],"task_count":2,"waiting":0}
+  ]}
+]

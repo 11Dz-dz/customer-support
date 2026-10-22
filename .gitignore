@@ -1,0 +1,46 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.netrc
+
+# Python, environments and editors
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime state, raw conversations, reports and database copies
+/logs/
+/evals/reports/
+/evals/reviews/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+*.backup
+*.tar
+*.tar.gz
+*.zip
+
+# Download data and model weights separately
+/data/dataset_audit/*.csv
+/data/dataset_audit/*.tsv
+/data/dataset_audit/instawdb.sql
+*.onnx
+/models/**/tokenizer.json
+/models/**/config.json

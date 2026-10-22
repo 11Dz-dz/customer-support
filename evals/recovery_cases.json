@@ -1,0 +1,12 @@
+[
+  {"id":"H01","actor":"guest","turns":[{"input":"请给我转人工，我想让真人客服处理。","expect":{"turn_kinds":["human_handoff"],"tools":[],"contains":["待人工处理","工单编号"],"no_write":true},"tickets":1}]},
+  {"id":"H02","actor":"guest","turns":[{"input":"我需要人工帮我处理这个问题。","expect":{"turn_kinds":["human_handoff"],"tools":[],"contains":["待人工处理"],"no_write":true},"tickets":1},{"input":"人工处理到哪一步了？查一下工单进度。","expect":{"turn_kinds":["handoff_status"],"tools":[],"contains":["待人工处理"],"no_write":true},"tickets":1}]},
+  {"id":"H03","actor":"owner","turns":[{"input":"先查询订单{own_order}的发货状态，然后帮我转人工。","expect":{"turn_kinds":["order_query","human_handoff"],"tools":["query_order"],"contains":["{own_order}","待人工处理"],"no_write":true},"tickets":1}]},
+  {"id":"H04","actor":"guest","turns":[{"input":"不要转人工，只解释HTTP 500代表什么。","expect":{"turn_kinds":["error_explanation"],"tools":["search_error_code"],"contains":["500"],"no_write":true},"tickets":0}]},
+  {"id":"H05","actor":"owner","turns":[{"input":"查询订单{own_order}的支付状态，不需要人工。","expect":{"at_least_tools":["check_payment_status"],"forbidden_tools":["request_refund"],"contains":["支付状态未知"],"no_write":true},"tickets":0}]},
+  {"id":"H06","actor":"guest","turns":[{"input":"查一下订单发货进度，订单号还没给你。","expect":{"tools":[],"statuses":{"awaiting_input":1},"no_write":true},"tickets":0}]},
+  {"id":"H07","actor":"guest","turns":[{"input":"有没有标价0.01以内且有有效报价的商品？","expect":{"turn_kinds":["catalog_query"],"tools":["query_products"],"statuses":{"empty":1},"no_write":true},"tickets":0}]},
+  {"id":"H08","actor":"guest","no_model":true,"turns":[{"input":"/human","expect":{"tools":[],"contains":["待人工处理"],"no_write":true},"tickets":1},{"input":"/handoffs","expect":{"tools":[],"contains":["待人工处理"],"no_write":true},"tickets":1}]},
+  {"id":"H09","actor":"owner","fault":{"method":"get_order","fail_calls":[1,2]},"turns":[{"input":"查询订单{own_order}的状态。","expect":{"tools":["query_order"],"statuses":{"failed":1},"no_write":true},"tickets":0},{"input":"只重试刚才查询失败的操作。","expect":{"tools":["query_order"],"statuses":{"failed":1},"contains":["待人工处理"],"no_write":true},"tickets":1},{"input":"查一下人工工单现在什么状态。","expect":{"turn_kinds":["handoff_status"],"tools":[],"contains":["待人工处理"],"no_write":true},"tickets":1}]},
+  {"id":"H10","actor":"owner","fault":{"method":"request_refund","fail_calls":[1]},"turns":[{"input":"订单{own_order}的商品不合适，帮我登记退款申请，原因是商品不合适。","expect":{"at_least_tools":["request_refund"],"contains":["待人工处理"],"absent":["退款成功","已经到账"],"no_write":false},"tickets":1}],"expected_fault_calls":1}
+]

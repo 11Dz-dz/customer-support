@@ -1,0 +1,8 @@
+# Complete direct dependencies, using the versions in the validated server environment.
+# PostgreSQL and the pgvector server extension are separate prerequisites.
+-r requirements-postgres.txt
+langchain-core==1.6.10
+langchain-deepseek==1.1.1
+python-dotenv==1.2.4
+pydantic==2.14.1
+openai==3.31.0

@@ -1,0 +1,10 @@
+{
+  "version": "validation_v1",
+  "frozen_at": "2026-10-22T06:09:18.765648+00:00",
+  "case_count": 24,
+  "turn_count": 40,
+  "sha256": "fb9b5e00866f38cfaa2691f9278a12d8f313a7f7fbb0557db7b10a608c89305e",
+  "first_live_run_used_for_tuning": false,
+  "authorship": "authored by implementation assistant before runtime changes; not independent human data",
+  "policy": "Do not edit v1 after first live run. If failures inform fixes, reclassify as regression and create a fresh validation version."
+}

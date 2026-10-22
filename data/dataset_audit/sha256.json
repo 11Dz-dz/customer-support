@@ -1,0 +1,8 @@
+{
+  "instawdb.sql": "d979f036750f9c7b4fb7be3d58cdbb596a74f864a6325998501b3a96c6ad53f9",
+  "Product.csv": "df0379a7cba8b11b97ea5d104cf1313ef9f683137b6426f2fac6bb8c74c2a2ea",
+  "ProductDescription.csv": "9247fbef2e84309e58c513ea08e455b197fb81686f8c3e1b44ec77a88cde5f72",
+  "ProductModelProductDescriptionCulture.csv": "f5b01f39001105027c98ca11ff11cc6fa78b0cc3c61baab09f024937b85f2291",
+  "SalesOrderDetail.csv": "220129977aa63e34fa4a1d66c2604bd2184373151efb09c98b343371ba77ab8a",
+  "SalesOrderHeader.csv": "cf637c7d58006ebbc13daf0b8ed6cf7f738165d298ae0b5479a59237429c1882"
+}
