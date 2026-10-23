@@ -25,7 +25,7 @@ python run_multiturn.py --thread-id demo-guest --verbose
 下面的 `/root/...` 与 `/opt/conda/...` 是原有服务器部署路径，仅用于理解和维护该部署。换机器时使用自己的项目路径和 Python 环境；不需要创建相同的绝对目录。原部署可直接运行，克隆的新环境须先完成上面的准备步骤。
 
 
-当前说明核对日期：2026-10-22。项目目录：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
+当前说明核对日期：2026-10-23。项目目录：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
 
 这是基于虚构样例数据的客服系统：销售、订单账单、技术支持三个专家，Supervisor生成任务清单，程序管理多任务、依赖、多轮与工具调用。没有接入真实店铺，不执行资金退款。
 
@@ -82,7 +82,7 @@ quit/exit/退出结束；/history显示授权公开历史；/new为同一用户�
 | 工单与诊断 | human_handoff.py、manage_handoffs.py、health_monitor.py、chat_events.py |
 | 测试及评测 | tests/、evals/、run_evaluation.py |
 
-完整56个Python文件职责与2个SQL文件在改进说明17.9。源码位于根目录，说明归docs，测试归tests；数据、模型、日志分别在data、models、logs。
+完整57个Python文件职责与2个SQL文件在改进说明17.9。源码位于根目录，说明归docs，测试归tests；数据、模型、日志分别在data、models、logs。
 
 ## 数据与检索边界
 
@@ -90,7 +90,7 @@ AdventureWorks样例含31,465个订单、121,317条明细、504种商品；订�
 
 全目录排序、计数、统计和精确订单使用参数化SQL；用途推荐使用关键词＋本地向量召回，RRF按名次融合。价格和类别在两路召回截断前应用，颜色和尺寸当前只在精确目录查询中支持。目录默认排除0标价，语义Top K不能证明全局最高价或完整数量。
 
-本地multilingual-e5-small ONNX量化模型为384维，CPU推理，不需要GPU或Embedding API Key。每件有描述商品一份短文档，带passage前缀；查询带query前缀。建库按SHA-256复用未变文档，并在完整profile就绪后切换。价格从商品表读取，未写入向量文本。
+本地multilingual-e5-small ONNX量化模型为384维，CPU推理，不需要GPU或Embedding API Key。每件有描述商品一份短文档，带passage前缀；查询带query前缀。建库按SHA-256复用未变文档，并在完整build_id构建就绪后原子切换活动指针。价格从商品表读取，未写入向量文本。
 
 目录价与历史成交价分开。源数据缺少可靠币种、支付流水、独立发票、实时库存、优惠、物流轨迹和退款政策时保持未知。发货不等于签收或付款。退款工具只登记/复用pending申请，订单行锁与唯一约束保证幂等，不执行资金退款。
 
@@ -148,7 +148,7 @@ pg_ctlcluster 17 main start
 
 ## 验证
 
-最新部署记录logs/recovery_verification_20261022.json：200项自动测试、112个模拟场景157轮通过自动检查。这不是生产准确率或独立人工验收。
+前一业务版本记录logs/recovery_verification_20261022.json：200项自动测试、112个模拟场景157轮通过自动检查。2026-10-23索引隔离修复后共210项自动测试通过，本次未重跑模型场景。这不是生产准确率或独立人工验收。
 
 自动测试使用真实PostgreSQL、假模型和临时资料，不调用DeepSeek：
 
@@ -157,3 +157,7 @@ pg_ctlcluster 17 main start
 ```
 
 全部五组真实模型回归会消耗额度，按顺序运行，详见[evals/README.md](evals/README.md)。最新报告统一从当前版本总览第7节进入。原始失败报告保留用于追溯，不在使用文档中将它们写成当前未完成问题。
+
+## 索引构建隔离（2026-10-23）
+
+每次增量更新写入独立build_id，完整校验后原子切换active_build_id；中途失败不覆盖活动向量。已有部署先运行`python build_product_knowledge.py --migrate-only`，不重算向量。过程、测试与限制见[构建隔离说明](docs/KNOWLEDGE_BUILDS.md)。

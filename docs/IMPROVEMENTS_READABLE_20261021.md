@@ -1,6 +1,6 @@
 # 多 Agent 客服系统：当前架构与完整改进说明
 
-核对日期：2026-10-22。项目：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
+核对日期：2026-10-23。项目：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
 
 本文按当前代码解释问题、改进方法、执行位置和限制。已删除失效的旧流程和旧待办；保留的问题例子用于说明当前设计的原因。文件名中的日期保留以兼容已有入口，不代表内容停留在当日。节号继续保留，行号会随整理变化。
 
@@ -98,7 +98,7 @@ Supervisor把“不超过500”提取成任务参数max_price=500；seed_product
 
 每件有描述的商品准备一份短资料，写入名称、型号、颜色、尺寸、重量和中英文描述。目前不是把一篇长文章切成很多段，也没有重叠分块；太长的输入仍受模型长度限制。
 
-价格不放进这份向量资料，查询时读商品表。这样改价格不需要重新生成描述向量。描述改变后，程序比较内容是否变化，只重新处理需要更新的资料；新版本完整准备好后才启用，避免只建好一半就拿来搜索。
+价格不放进这份向量资料，查询时读商品表。这样改价格不需要重新生成描述向量。描述改变后，程序比较内容是否变化，只重新处理需要更新的资料；新build_id完整准备好后才原子切换活动指针，避免只建好一半就拿来搜索。
 
 没有描述的商品不会自动补写介绍。即便找到了描述，也不代表其中的翻译和产品承诺一定正确，仍需要检查来源。
 
@@ -295,7 +295,7 @@ AnswerPlan不允许模型自填单价或总价替代工具值；选择的商品�
 
 ### 8.4 当前验证结果
 
-最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
+此前业务版本的112个模拟场景157轮报告保留，不是本次索引修复的新实测。2026-10-23新增10项索引数据库测试，自动套件共210项通过；本次未调用DeepSeek。当前验证口径见[总览](CURRENT_PROJECT_STATUS.md)及[索引构建隔离说明](KNOWLEDGE_BUILDS.md)。
 
 评测需检查实际完成数量、失败项、服务不可用、源码与源数据指纹。HTTP 402等未完成请求不能算通过，也不能将不同版本的局部结果拼成完整成绩。
 
@@ -390,9 +390,9 @@ LIMIT 1;
 
 这不是让模型判断两篇文字意思是否一致。即使只是改了标点，内容指纹通常也会变化，因此可能重新处理。
 
-商品名称、颜色、尺寸、重量或描述变化会影响这份文本；价格不写入向量文档，因此仅改价格不会要求重新生成描述向量。若更换Embedding模型或配置版本，旧版本向量也不能直接混用，要为新版本准备对应向量。
+商品名称、颜色、尺寸、重量或描述变化会影响这份文本；价格不写入向量文档，因此仅改价格不会要求重新生成描述向量。若更换Embedding模型或配置版本，旧版本向量也不能直接混用，要为新profile下的独立build准备对应向量。
 
-代码：`product_knowledge.py`的`product_document()`、`content_hash()`；`build_product_knowledge.py`中比较`old_hashes`与新`content_hash`，只将变化文档放入`pending`。
+代码：`product_knowledge.py`的`product_document()`、`content_hash()`；`build_product_knowledge.py`中`_start_build()`按配置、文本、哈希和维度复制已有向量到新build，仅将缺少向量的文档放入pending。
 
 ### 11.4 价格筛选：是不是先单独查出一个价格区间
 
@@ -569,7 +569,7 @@ product_search先由seed_product_search取证，再交给专家判断是否需�
 
 ### 12.8 证据位置
 
-最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
+此前业务版本的112个模拟场景157轮报告保留，不是本次索引修复的新实测。2026-10-23新增10项索引数据库测试，自动套件共210项通过；本次未调用DeepSeek。当前验证口径见[总览](CURRENT_PROJECT_STATUS.md)及[索引构建隔离说明](KNOWLEDGE_BUILDS.md)。
 
 ## 13. 复合请求：一句话里的多件事，分别处理后再汇总
 
@@ -675,7 +675,7 @@ product_search先由seed_product_search取证，再交给专家判断是否需�
 
 未绑定客户身份的游客仍然无法查询订单。以上是历史样例数据库上的客服演示，不创建购买订单，不执行资金退款。
 
-最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
+此前业务版本的112个模拟场景157轮报告保留，不是本次索引修复的新实测。2026-10-23新增10项索引数据库测试，自动套件共210项通过；本次未调用DeepSeek。当前验证口径见[总览](CURRENT_PROJECT_STATUS.md)及[索引构建隔离说明](KNOWLEDGE_BUILDS.md)。
 
 ## 14. 重试与上下文：部分完成、失败项重试、新验证集与长会话
 
@@ -806,7 +806,7 @@ v2首次结果为6/8，两个失败是“自行车整车”推荐中混入车把
 
 ### 14.11 最终验证与如何阅读结果
 
-最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
+此前业务版本的112个模拟场景157轮报告保留，不是本次索引修复的新实测。2026-10-23新增10项索引数据库测试，自动套件共210项通过；本次未调用DeepSeek。当前验证口径见[总览](CURRENT_PROJECT_STATUS.md)及[索引构建隔离说明](KNOWLEDGE_BUILDS.md)。
 
 失败案例与修复方法见14.10；首次v1为22/24、首次v2为6/8，保留在evals原始报告中。它们说明问题如何发现，不是当前未通过列表。
 
@@ -936,7 +936,7 @@ tool_end事件新增outcome、error_code和retryable，继续保留请求/会话
 
 ### 15.10 当前验证
 
-最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
+此前业务版本的112个模拟场景157轮报告保留，不是本次索引修复的新实测。2026-10-23新增10项索引数据库测试，自动套件共210项通过；本次未调用DeepSeek。当前验证口径见[总览](CURRENT_PROJECT_STATUS.md)及[索引构建隔离说明](KNOWLEDGE_BUILDS.md)。
 
 ## 16. 期限与人工：请求超时、已有结果恢复与最小转人工闭环
 
@@ -1098,7 +1098,7 @@ PostgreSQL的customer_service schema增加两个表：
 | DS结构化规划 | 模型格式不稳定或规划信息丢失 | TaskPlan＋JSON模式＋Pydantic＋一次schema修正；supervisor_node。 |
 | 本地向量 | 用途表达与原词不同 | CPU ONNX multilingual-e5-small、384维、query/passage前缀；embedding_client.py。 |
 | 混合召回 | 仅词法或仅相似度各有遗漏 | PostgreSQL关键词与pgvector两路，RRF按名次融合；product_knowledge.py。 |
-| 增量建库 | 未变文档重复Embedding或半库上线 | SHA-256复用、profile就绪切换；build_product_knowledge.py。 |
+| 增量建库 | 未变文档重复Embedding或半库上线 | SHA-256复用、独立build候选与活动指针原子切换；build_product_knowledge.py。 |
 | 目录查询 | 局部搜索无法证明全局极值 | catalog_query直接映射query_products，完整SQL范围排序、统计与并列。 |
 | 检索过滤 | 超预算候选占满Top K或把配件当整车 | 两路召回应用价格和类别；catalog_filters.py。颜色尺寸目前只精确目录支持。 |
 | 序列化及冷启动 | Decimal/date格式异常、模型重复加载 | json_ready统一输出，本地模型加载加锁；业务服务及embedding_client.py。 |
@@ -1222,8 +1222,10 @@ search_products收到查询文本＋价格/类别等过滤参数
 | dataset_imports | 数据导入记录和文件指纹。 |
 | refund_requests | 退款申请登记，不是资金交易流水。 |
 | knowledge_profiles | Embedding模型与文档配置版本。 |
-| product_knowledge | 商品文档、哈希及向量。 |
-| knowledge_settings | 当前活动向量profile。 |
+| product_knowledge | 仅保留旧向量作为迁移来源，新版不再读写此表。 |
+| knowledge_builds | 独立构建的配置、快照、数量与状态。 |
+| knowledge_build_products | 按build_id隔离的完整文档与向量。 |
+| knowledge_settings | 活动profile_id与build_id指针，在发布事务中同时更新。 |
 | session_customers | 可信服务器管理的会话客户映射。 |
 | human_handoffs | 人工工单状态和最小上下文。 |
 | human_handoff_events | 工单创建、领取及完成审计。 |
@@ -1249,7 +1251,7 @@ agent_checkpoints中核对到checkpoints、checkpoint_blobs、checkpoint_writes�
 
 ### 17.8 当前验证与原始证据的边界
 
-最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
+此前业务版本的112个模拟场景157轮报告保留，不是本次索引修复的新实测。2026-10-23新增10项索引数据库测试，自动套件共210项通过；本次未调用DeepSeek。当前验证口径见[总览](CURRENT_PROJECT_STATUS.md)及[索引构建隔离说明](KNOWLEDGE_BUILDS.md)。
 
 原始首次失败与后续回归、AI辅助复核和固定场景仍保存在evals中。读者文档删除了旧架构说明和重复代码快照；原始报告用于追溯当时结果，不作为当前架构或当前待办。
 
@@ -1266,7 +1268,7 @@ agent_checkpoints中核对到checkpoints、checkpoint_blobs、checkpoint_writes�
 |---|---|
 | `adventureworks_service.py` | 参数化业务SQL、商品/订单查询、金额估算与申请登记。 |
 | `answer_contract.py` | 回答计划校验与业务证据渲染。 |
-| `build_product_knowledge.py` | 按内容哈希增量建库，完整后发布活动profile。 |
+| `build_product_knowledge.py` | 独立build增量建库、失败复用、完整校验和原子发布。 |
 | `catalog_filters.py` | 样例商品类别与子类映射，两路召回及展示校验。 |
 | `chat_events.py` | 事件日志、请求/工具关联、耗时和结果分类。 |
 | `chat_runtime.py` | 带会话锁和请求期限的流式/一次性调用入口。 |
@@ -1323,6 +1325,7 @@ agent_checkpoints中核对到checkpoints、checkpoint_blobs、checkpoint_writes�
 | `tests/test_chat_runtime.py` | 跨进程会话、隔离、锁、流式过滤与日志脱敏。 当前定义6项自动测试。 |
 | `tests/test_evaluation.py` | 评测划分、参考事实、权限/副作用和可比性门槛。 当前定义18项自动测试。 |
 | `tests/test_health_monitor.py` | 探测资源口径、异常范围和秘密隔离。 当前定义12项自动测试。 |
+| `tests/test_knowledge_builds.py` | 独立构建、失败隔离、原子发布、迁移和并发。当前定义10项自动测试。 |
 | `tests/test_multitask.py` | 复合任务、依赖、歧义、取消、对象选择与共享预算。 当前定义35项自动测试。 |
 | `tests/test_postgres_service.py` | 数据关联、未知状态及并发申请去重。 当前定义5项自动测试。 |
 | `tests/test_product_queries.py` | 全目录查询、价格/颜色/尺寸及召回前过滤。 当前定义5项自动测试。 |
@@ -1333,8 +1336,15 @@ agent_checkpoints中核对到checkpoints、checkpoint_blobs、checkpoint_writes�
 | `tests/test_tool_execution.py` | 并发去重、缓存边界、预算和循环终止。 当前定义6项自动测试。 |
 | `tests/test_tool_result.py` | 统一协议、错误分类、旧记录、写入保护及工具边界。 当前定义19项自动测试。 |
 
-两个DDL文件：`schema_postgres.sql`定义业务基础结构，`schema_product_knowledge.sql`定义向量与profile结构。会话身份及人工工单DDL位于相应Python模块，未遗漏成“数据库里凭空出现的表”。
+两个DDL文件：`schema_postgres.sql`定义业务基础结构，`schema_product_knowledge.sql`定义向量、profile、build和活动指针结构。会话身份及人工工单DDL位于相应Python模块，未遗漏成“数据库里凭空出现的表”。
 
 ### 17.10 当前文档覆盖范围
 
 当前说明覆盖数据导入、数据库、检索、任务状态、条件继承、上下文、调度、证据、工具协议、预算、超时和工单。当前源码文件职责见17.9，所有配置用途见17.7。文档整理不改运行代码、数据、配置、冻结场景或原始评测报告；详细变更记录在logs/documentation_current_alignment_20261022.json。
+
+
+## 18. 商品向量构建：同配置增量更新也隔离发布
+
+发现的问题是原profile标识模型配置，同配置增量直接覆盖活动向量，分批提交后失败可能部分更新。现在每次新建build_id，复用及新增向量只写候选构建；完整核对源快照、条数、文本、哈希和维度后，事务内切换活动指针。检索锁定一个ready构建，失败半成品不进入活动索引。
+
+新增构建表、构建商品表和active_build_id；旧数据迁为legacy构建，原表保留。10项真实数据库测试覆盖失败、复用、发布回滚、迁移和并发；全套210项自动测试通过。问题、逐步处理、命令及未实现的回收策略见[独立构建说明](KNOWLEDGE_BUILDS.md)。

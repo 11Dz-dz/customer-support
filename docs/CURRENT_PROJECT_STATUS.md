@@ -1,7 +1,7 @@
 24,26
 # 当前版本总览与收尾清单
 
-核对日期：2026-10-22。适用项目：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
+核对日期：2026-10-23。适用项目：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
 
 本文与易读版说明均已按当前架构整理。问题背景用于解释设计原因，不再保留已失效的旧流程或旧待办。
 
@@ -94,7 +94,9 @@ identity_guard → supervisor → scheduler → 专家 → collect → scheduler
 
 ## 7. 现在验证到了什么程度
 
-最后一轮代码部署核验记录为`logs/recovery_verification_20261022.json`，状态verified。本次文档核对再次确认其中18个已部署代码及测试/验收文件的哈希匹配；这次只整理文档，没有重新调用模型或重跑场景。
+2026-10-23索引隔离修复：新增10项真实PostgreSQL测试，完整自动套件210项通过；使用假Embedding，不调用DeepSeek。下面112场景157轮及200项测试属于前一业务版本，保留为历史回归证据，本次未重跑真实模型场景。详见[构建隔离](KNOWLEDGE_BUILDS.md)。
+
+前一业务版本部署核验记录为`logs/recovery_verification_20261022.json`，状态verified。本次文档核对再次确认其中18个已部署代码及测试/验收文件的哈希匹配；这次只整理文档，没有重新调用模型或重跑场景。
 
 | 验证集合 | 场景数 | 对话轮数 | 结果 |
 |---|---:|---:|---|
@@ -159,6 +161,8 @@ identity_guard → supervisor → scheduler → 专家 → collect → scheduler
 - 17.2：原问题、当前方法和实现位置。
 - 17.3–17.6：任务状态、条件继承、上下文压缩与实际检索输入；没有额外的全历史总结模型或独立查询重写Agent。
 - 17.7：实际表/视图与12个配置名。
-- 17.9：56个Python文件与2个SQL文件的职责。
+- 17.9：57个Python文件与2个SQL文件的职责。
 
 旧版重复总结、旧代码原始确认摘录和旧阶段评测说明已删除。有关事实的说明并入当前正文，评测使用统一evals/README.md，历史原始报告仍在evals中。详细清理记录在logs/documentation_current_alignment_20261022.json。
+
+向量构建现使用独立build_id及原子指针发布，迁移、故障处理与限制见[构建隔离说明](KNOWLEDGE_BUILDS.md)。

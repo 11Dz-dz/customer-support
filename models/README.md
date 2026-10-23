@@ -14,3 +14,7 @@ models/multilingual-e5-small/
 来源：[Xenova/multilingual-e5-small](https://huggingface.co/Xenova/multilingual-e5-small)，已验证文件修订号及SHA-256见manifest.json。遵守原模型许可。模型目录可由EMBEDDING_MODEL_PATH指定，模板默认使用上面的相对路径；从项目根目录运行。
 
 文件齐全、数据导入与数据库扩展准备完成后，运行 `python build_product_knowledge.py`。查询与文档前缀、推理长度及profile切换由程序管理；不要把不同配置的向量直接混用。
+
+## 索引构建隔离（2026-10-23）
+
+每次增量更新写入独立build_id，完整校验后原子切换active_build_id；中途失败不覆盖活动向量。已有部署先运行`python build_product_knowledge.py --migrate-only`，不重算向量。过程、测试与限制见[构建隔离说明](docs/KNOWLEDGE_BUILDS.md)。

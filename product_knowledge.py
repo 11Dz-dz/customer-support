@@ -30,9 +30,11 @@ def content_hash(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
-def source_documents() -> list[dict]:
-    with connect_database() as conn:
-        catalog = conn.execute("SELECT * FROM product_catalog ORDER BY product_id").fetchall()
+def source_documents(conn=None) -> list[dict]:
+    if conn is None:
+        with connect_database() as connection:
+            return source_documents(conn=connection)
+    catalog = conn.execute("SELECT * FROM product_catalog ORDER BY product_id").fetchall()
     return [{"product_id": p["product_id"], "content": text, "content_hash": content_hash(text)}
             for p in catalog if (text := product_document(p)) is not None]
 
@@ -64,7 +66,9 @@ def hybrid_retrieve(query: str, keyword_rows: list[dict], limit: int, *, min_pri
         exists = conn.execute("SELECT to_regclass('customer_service.knowledge_settings') AS name").fetchone()
         if not exists["name"]:
             raise EmbeddingError("商品向量表尚未初始化")
-        active = conn.execute("SELECT active_profile_id FROM knowledge_settings WHERE singleton=true").fetchone()
+        active = conn.execute("""SELECT s.active_profile_id,s.active_build_id FROM knowledge_settings s
+            JOIN knowledge_builds b ON b.build_id=s.active_build_id AND b.profile_id=s.active_profile_id
+            WHERE s.singleton=true AND b.status='ready'""").fetchone()
         if not active:
             raise EmbeddingError("商品向量尚未完成入库")
         if active["active_profile_id"] != profile_id:
@@ -81,12 +85,12 @@ def hybrid_retrieve(query: str, keyword_rows: list[dict], limit: int, *, min_pri
             f"""SELECT p.product_id,p.name,p.product_number,p.product_subcategory_id,p.color,p.size,p.weight,p.weight_unit,
                       p.list_price,p.description_en,p.description_zh,p.sell_end_at,p.discontinued_at,
                       k.content AS retrieved_content, 1-(k.embedding <=> %s::public.vector) AS similarity
-               FROM product_knowledge k JOIN product_catalog p ON p.product_id=k.product_id
-               WHERE k.profile_id=%s AND k.embedding_dimensions=%s
+               FROM knowledge_build_products k JOIN product_catalog p ON p.product_id=k.product_id
+               WHERE k.build_id=%s AND k.embedding_dimensions=%s
                  AND {' AND '.join(clauses)}
                  AND 1-(k.embedding <=> %s::public.vector) >= %s
                ORDER BY k.embedding <=> %s::public.vector, p.product_id LIMIT %s""",
-            [vector, profile_id, client.settings.dimensions, *price_parameters,
+            [vector, active['active_build_id'], client.settings.dimensions, *price_parameters,
              vector, threshold, vector, max(20, limit)],
         ).fetchall()
     # 不返回已变化描述对应的旧向量；商品更改后需要重新运行入库脚本。
