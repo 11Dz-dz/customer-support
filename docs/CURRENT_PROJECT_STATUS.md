@@ -1,7 +1,7 @@
 24,26
 # 当前版本总览与收尾清单
 
-核对日期：2026-10-23。适用项目：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
+核对日期：2026-10-24。适用项目：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
 
 本文与易读版说明均已按当前架构整理。问题背景用于解释设计原因，不再保留已失效的旧流程或旧待办。
 
@@ -94,6 +94,8 @@ identity_guard → supervisor → scheduler → 专家 → collect → scheduler
 
 ## 7. 现在验证到了什么程度
 
+最新已验证源码为2026-10-24版本：222项自动测试通过，24场景47轮真实DeepSeek模拟回归通过，另有两次原生工具闭环。2026-10-26已核对与服务器源码一致，上传时未重跑评测。[验证元数据](validation/deepseek_protocol_20261024.json)保留范围与哈希。下文200/210项及112场景是较早版本记录。
+
 2026-10-23索引隔离修复：新增10项真实PostgreSQL测试，完整自动套件210项通过；使用假Embedding，不调用DeepSeek。下面112场景157轮及200项测试属于前一业务版本，保留为历史回归证据，本次未重跑真实模型场景。详见[构建隔离](KNOWLEDGE_BUILDS.md)。
 
 前一业务版本部署核验记录为`logs/recovery_verification_20261022.json`，状态verified。本次文档核对再次确认其中18个已部署代码及测试/验收文件的哈希匹配；这次只整理文档，没有重新调用模型或重跑场景。
@@ -109,7 +111,7 @@ identity_guard → supervisor → scheduler → 专家 → collect → scheduler
 
 另有200项自动测试通过，包括假异步模型、真实PostgreSQL、跨进程恢复、权限、并发、回滚与工单测试。200项检查不是200条真实客户对话，也不意味着112个场景覆盖了所有问法。
 
-最新报告：
+2026-10-22历史报告：
 
 - [原60场景](validation/20261022T093805Z-d779bd1e_summary.md)
 - [复合任务](validation/20261022T094118Z-multitask-9bde9efe_summary.md)
@@ -166,3 +168,7 @@ identity_guard → supervisor → scheduler → 专家 → collect → scheduler
 旧版重复总结、旧代码原始确认摘录和旧阶段评测说明已删除。有关事实的说明并入当前正文，评测使用统一evals/README.md，历史原始报告仍在evals中。详细清理记录在logs/documentation_current_alignment_20261022.json。
 
 向量构建现使用独立build_id及原子指针发布，迁移、故障处理与限制见[构建隔离说明](KNOWLEDGE_BUILDS.md)。
+
+## DeepSeek兼容与评测补强（2026-10-24）
+
+修复程序证据消息被当成模型工具响应、以及SDK后续请求漏传真实推理字段的问题；评测不再将有商品的降级回答直接当作推荐完整成功。分别报价逻辑未改。新增协议测试，最新结果和已观察到的报价规划波动见[修复与验证说明](DEEPSEEK_PROTOCOL.md)。

@@ -7,6 +7,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from evals.fixtures import CaseFixture, source_fingerprint
+from evals.observer import EvaluationObserver
+from evals.runtime_checks import execution_checks
 
 
 def check_trace(spec, state, tool_names, answer):
@@ -61,36 +63,50 @@ def main():
     records=[]
     for case in cases:
         record={'id':case['id'],'turns':[],'passed':False}
+        observer=None
         try:
             with CaseFixture(case['actor']) as f:
                 for spec in case['turns']:
                     config={'configurable':{'thread_id':f.thread_id}}
                     old=project.app.get_state(config).values.get('messages',[])
                     query=spec['input'].format(**f.slots)
-                    parts=list(stream_turn(project.app,query,f.thread_id))
+                    observer=EvaluationObserver(f.order_ids)
+                    parts=list(stream_turn(project.app,query,f.thread_id,callbacks=[observer]))
                     state=project.app.get_state(config).values
                     tools=[m.name for m in state['messages'][len(old):] if m.type=='tool']
                     answer=state['messages'][-1].content
                     checks=check_trace(spec,state,tools,answer)
                     checks.append({'name':'stream_matches_answer','passed':''.join(p['text'] for p in parts if p['type']=='text')==answer})
                     trace={'input':query,'answer':answer,'tools':tools,'tasks':state.get('tasks',[]),
-                           'budget':state.get('turn_budget'),'checks':checks}
+                           'budget':state.get('turn_budget'),'checks':checks,'models':observer.models,
+                           'task_execution':[{k:t.get(k) for k in ('task_id','kind','agent','status','failure_code')}
+                               for t in state.get('tasks',[]) if t['task_id'] in state.get('turn_task_ids',[])]}
+                    checks.extend(execution_checks(trace))
+                    checks.append({'name':'no_safety_violation','passed':not observer.violations})
                     record['turns'].append(trace)
+                    if observer.terminal_status is not None:
+                        record['provider_status_code']=observer.terminal_status
+                        break
                 counts=f.refund_counts()
                 record['no_refund_side_effects']=not any(counts.values())
                 record['passed']=record['no_refund_side_effects'] and all(all(c['passed'] for c in t['checks']) for t in record['turns'])
         except Exception as exc:
             record['error_type']=type(exc).__name__
+            if observer is not None and observer.terminal_status is not None:
+                record['provider_status_code']=observer.terminal_status
         records.append(record)
         (dest/'report.json').write_text(json.dumps({'run_id':run_id,'results':records,'code_hashes':hashes},ensure_ascii=False,indent=2))
         print('MULTITASK_CASE',record['id'],'PASS' if record['passed'] else 'FAIL',flush=True)
+        if record.get('provider_status_code') in {401,402,403}:
+            break
     unchanged=before==source_fingerprint()
     code_unchanged=all(hashlib.sha256((root/n).read_bytes()).hexdigest()==value for n,value in hashes.items())
     passed=sum(r['passed'] for r in records)
     report={'run_id':run_id,'results':records,'code_hashes':hashes,'cases_sha256':hashlib.sha256(cases_path.read_bytes()).hexdigest(),
             'passed':passed,'case_count':len(records),'turn_count':sum(len(r['turns']) for r in records),
             'source_unchanged':unchanged,'code_unchanged':code_unchanged,
-            'gate_pass':passed==len(records) and unchanged and code_unchanged,
+            'planned_cases':len(cases),
+            'gate_pass':len(records)==len(cases) and passed==len(cases) and unchanged and code_unchanged,
             'scope':'Simulated regression, automated checks; not independent human acceptance'}
     (dest/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
     text=f'# Compound request regression\n\n{passed}/{len(records)} cases passed; {report["turn_count"]} turns. Source unchanged: {unchanged}.\n\n'

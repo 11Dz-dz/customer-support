@@ -76,7 +76,8 @@ def execute_operations(task, operations, tools, config, *, include_plan=True):
     if any(name not in tools for name, _ in operations) or len(operations) > 6:
         return None
     calls = [{'name': name, 'args': args, 'id': 'task-' + uuid4().hex} for name, args in operations]
-    delta = [AIMessage(content='', tool_calls=calls)]
+    # Audit/evidence record only. The model input must not claim the model made this call.
+    delta = [AIMessage(content='', tool_calls=calls, additional_kwargs={'program_execution': True})]
     for call in calls:
         request = SimpleNamespace(tool_call=call, tool=tools[call['name']], runtime=SimpleNamespace(config=config))
         try:

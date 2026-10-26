@@ -14,7 +14,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import create_react_agent, ToolNode
 from langgraph.graph.message import add_messages
-from langchain_deepseek import ChatDeepSeek
+from deepseek_model import ThinkingChatDeepSeek
 import json
 from adventureworks_service import AdventureWorksService
 from tool_result import result_boundary, exception_result, failure_payload
@@ -296,7 +296,7 @@ def request_refund(order_id: str, reason: str, config: RunnableConfig) -> dict:
 
 def create_deepseek_model(temperature: float = 0.2, role: str = "specialist"):
     """创建 DeepSeek 聊天模型。"""
-    return ChatDeepSeek(
+    return ThinkingChatDeepSeek(
         model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
         api_key=DEEPSEEK_API_KEY,
         api_base="https://api.deepseek.com",
@@ -539,7 +539,7 @@ def collect_node(state: SupervisorState, config: RunnableConfig):
         content = content[len(prefix):].lstrip()
     emit_event('task_end', inner_config, task_id=task.task_id, task_type=task.kind,
                status=task.status, evidence_count=len(result.current))
-    emit_event('agent_end', inner_config, agent=name, success=True, elapsed_ms=state.get('execution_elapsed_ms', 0))
+    emit_event('agent_end', inner_config, agent=name, success=not bool(execution_error), elapsed_ms=state.get('execution_elapsed_ms', 0))
     # 只持久化结果摘要；工具正文继续由 messages 保存，避免每轮复制历史证据。
     summary = {'task_id': task.task_id, 'status': result.status, 'from_history': result.from_history,
                'evidence_ids': task.evidence_call_ids, 'awaiting_fields': result.awaiting_fields,

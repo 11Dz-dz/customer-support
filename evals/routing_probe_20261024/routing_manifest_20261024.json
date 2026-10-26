@@ -1,0 +1,19 @@
+{
+  "version": "routing_20261024",
+  "case_count": 24,
+  "turn_count": 47,
+  "sha256": "b10976014a6503d691506b229245037d6a399f92966658d3c4ce6bcac3561d82",
+  "created_before_live": true,
+  "scope": "Simulated assistant-authored first-use diagnostic; not independent human blind test",
+  "categories": {
+    "ambiguity": 4,
+    "cancel": 4,
+    "compound": 4,
+    "continuation": 4,
+    "safety": 4,
+    "switch": 4
+  },
+  "business_code_changes": false,
+  "no_multiuser_test": true,
+  "preflight_note": "Before first live run: SHA computed on actual file bytes, including Windows line endings; question content unchanged."
+}

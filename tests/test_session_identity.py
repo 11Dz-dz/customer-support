@@ -176,7 +176,7 @@ class SessionIdentityTest(unittest.TestCase):
                 else:
                     answer = AIMessage(content="", tool_calls=[
                         {"name": "query_order", "args": {"order_id": oid}, "id": "call-" + oid}
-                        for oid in ("43659", "43660")])
+                        for oid in ("43659", "43660")], additional_kwargs={'reasoning_content':'test-provider-reasoning'})
                 return ChatResult(generations=[ChatGeneration(message=answer)])
 
         tools = [module.query_order]

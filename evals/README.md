@@ -210,3 +210,5 @@ cd /root/rivermind-data/Agent/example/langgraph_olist_example
 故障注入与临时申请只用于测试，测试结束仅按生成的标记和thread_id清理本次临时数据/工单，不清理正常用户资料。遇到服务不可用或未完成场景，应如实记录，不能算通过。
 
 v1/v2已经参与修复，继续使用时是回归；新增工单集合在实现后编写，也是模拟功能验收。上文早期“holdout划分”是最初数据划分名称，后续多次运行后的成绩不能再当作新的独立盲测或生产正确率。AI辅助复核也不等于独立人工验收。
+
+- [DeepSeek工具消息兼容、评测漏判修复及最新回归](../docs/DEEPSEEK_PROTOCOL.md)。

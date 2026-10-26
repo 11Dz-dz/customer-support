@@ -288,6 +288,7 @@ class ContextTest(unittest.TestCase):
         calls=batch([('query_products',{'max_price':100},{'success':True,'matched_count':30,'max_price':100,
             'products':[{'product_id':i,'list_price':'99.9900','description':'原文'*1000} for i in range(30)]})])
         latest=HumanMessage(content='再问一个问题')
+        calls[0].additional_kwargs['reasoning_content']='original-model-reasoning'
         messages=[old_user]+calls+[latest]
         bounded,_=expert_context([SystemMessage(content='system')],messages)
         self.assertLess(bounded.index(next(m for m in bounded if m.type=='tool')),bounded.index(latest))

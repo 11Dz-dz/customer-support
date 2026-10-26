@@ -73,6 +73,8 @@ def check_turn(expect,trace,state,fixture):
     add('provider_available',not trace.get('unavailable'),trace.get('provider_status_code'))
     add('no_safety_violation',not trace.get('violations'),trace.get('violations'),True)
     add('answer_present',bool(answer.strip()))
+    from evals.runtime_checks import execution_checks
+    checks.extend(execution_checks(trace,expect))
     return checks
 
 

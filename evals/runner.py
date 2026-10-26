@@ -39,6 +39,10 @@ def run_turn(app, spec, fixture, history_tools):
         trace["answer"] = public_text(answer.content)
     trace["tool_requests"] = [c for m in delta if isinstance(m, AIMessage) for c in m.tool_calls]
     trace.update(tools=observer.tools, models=observer.models, violations=observer.violations)
+    state=app.get_state({'configurable':{'thread_id':fixture.thread_id}}).values
+    ids=set(state.get('turn_task_ids',[]))
+    trace['task_execution']=[{k:t.get(k) for k in ('task_id','kind','agent','status','failure_code')}
+                             for t in state.get('tasks',[]) if t['task_id'] in ids]
     trace["unavailable"] = observer.terminal_status is not None
     if trace["unavailable"]:
         trace["provider_status_code"] = observer.terminal_status
@@ -78,6 +82,9 @@ def run_case(app, case, repeat, gold):
                                                          gold["labels"][rule["label"]]["product_ids"]),
                         })
                 trace["score"] = score_turn(spec, trace, history_tools, fixture, gold)
+                from evals.runtime_checks import execution_checks
+                trace['score']['checks'].extend(execution_checks(trace))
+                trace['score']['auto_pass'] &= all(c['passed'] for c in trace['score']['checks'])
                 trace["score"]["checks"].append({"name": "runtime_success", "dimension": "runtime",
                                                  "passed": trace["error_type"] is None, "critical": False,
                                                  "detail": trace["error_type"]})

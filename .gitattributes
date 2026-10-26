@@ -6,3 +6,7 @@
 *.jsonl text eol=lf
 *.txt text eol=lf
 .env.example text eol=lf
+
+# Frozen test sets are hashed as raw bytes; preserve their original line endings.
+evals/routing_probe_20261024/*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+evals/routing_probe_v2/*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

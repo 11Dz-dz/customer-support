@@ -283,7 +283,10 @@ def scoped_history(messages, task):
         elif isinstance(m, AIMessage) and m.tool_calls:
             calls = [c for c in m.tool_calls if c['id'] in allowed]
             if calls:
-                out.append(m.model_copy(update={'tool_calls': calls}))
+                extra = dict(m.additional_kwargs)
+                if len(calls) != len(m.tool_calls):
+                    extra['context_calls_filtered'] = True
+                out.append(m.model_copy(update={'tool_calls': calls, 'additional_kwargs': extra}))
         else:
             out.append(m)
     # Replacing only the last user message isolates a compound request into the active subtask.

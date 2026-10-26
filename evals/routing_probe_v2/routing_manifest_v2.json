@@ -1,0 +1,12 @@
+{
+  "version": "routing-probe-v2-20261024",
+  "case_count": 24,
+  "turn_count": 47,
+  "sha256": "2b9dcaca600d7796ba4bdbb1a11060555ba325fa7fc3621d6da08d5ceb14596f",
+  "parent_sha256": "b10976014a6503d691506b229245037d6a399f92966658d3c4ce6bcac3561d82",
+  "changes": [
+    "N10 accepts separate verified quotes per user decision; no quote runtime change",
+    "N01/N20 require completed product recommendation; runtime checks reject masked model errors"
+  ],
+  "scope": "Regression authored after first test and before this fix is tested; simulated, not independent acceptance"
+}
