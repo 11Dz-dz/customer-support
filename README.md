@@ -6,7 +6,7 @@
 
 ## 克隆后准备
 
-1. 使用 Python 3.11 或更新的兼容版本，在隔离环境中执行 `python -m pip install -r requirements.txt`。现有验证环境的直接依赖版本已记录在清单中。
+1. 使用 Python 3.11 或更新的兼容版本，在隔离环境中执行 `python -m pip install -r requirements-web.txt`（包含客服核心与Web依赖）。现有验证环境的直接依赖版本已记录在清单中。
 2. 准备 PostgreSQL 和 pgvector 服务端扩展，创建数据库及专用用户。将 `.env.example` 复制为 `.env`，填写自己的 `DEEPSEEK_API_KEY` 和 `DATABASE_URL`。模板中的地址、账号和口令仅为示例；不要提交真实 `.env`。
 3. 按 [数据准备说明](data/README.md) 放入五份 AdventureWorks 原文件；按 [模型准备说明](models/README.md) 放入本地 ONNX 模型和分词文件。
 4. 从仓库根目录依次运行：
@@ -18,14 +18,14 @@ python build_product_knowledge.py
 python run_multiturn.py --thread-id demo-guest --verbose
 ```
 
-游客可咨询商品；订单访问需先由管理员为一个没有历史的新会话绑定样例客户，详见下面的身份说明。没有前端页面，不会自动启动真人接待服务。
+游客可咨询商品；订单访问需先由管理员为一个没有历史的新会话绑定样例客户，详见下面的身份说明。已提供Web聊天及工单页面；不会自动接通真人客服。
 
 ## 已有部署说明
 
 下面的 `/root/...` 与 `/opt/conda/...` 是原有服务器部署路径，仅用于理解和维护该部署。换机器时使用自己的项目路径和 Python 环境；不需要创建相同的绝对目录。原部署可直接运行，克隆的新环境须先完成上面的准备步骤。
 
 
-源码核对日期：2026-10-26；最新已有验证日期：2026-10-24。项目目录：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
+当前业务源码核对至2026-11-05，包含注册登录、多任务条件更新、目录覆盖、处理中追加消息和公网访问配置。项目目录：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
 
 这是基于虚构样例数据的客服系统：销售、订单账单、技术支持三个专家，Supervisor生成任务清单，程序管理多任务、依赖、多轮与工具调用。没有接入真实店铺，不执行资金退款。
 
@@ -35,6 +35,7 @@ python run_multiturn.py --thread-id demo-guest --verbose
 - [完整改进说明](docs/IMPROVEMENTS_READABLE_20261021.md)：问题、当前方法与代码；保留此前八项疑问。
 - [专项文档目录](docs/README.md)。
 - [评测使用与最新证据](evals/README.md)。
+- [当前版评测](evals/CURRENT_EVALUATION.md)：80个场景，SQL规则、AgentEvals轨迹、OpenEvals回答评分及LangSmith关联。
 
 ## 当前执行流程
 
@@ -63,7 +64,7 @@ cd /root/rivermind-data/Agent/example/langgraph_olist_example
 /opt/conda/envs/agent/bin/python run_multiturn.py --thread-id demo-bound-20261022 --verbose
 ```
 
-示例订单43659属于29825，43660属于29672。会话ID已用时另选新ID；已绑定会话不能换绑，已有游客历史不能补绑。映射是可信管理员演示配置，thread_id不是登录凭证，真实登录尚未实现。
+示例订单43659属于29825，43660属于29672。会话ID已用时另选新ID；已绑定会话不能换绑，已有游客历史不能补绑。CLI映射是可信管理员演示配置，thread_id不是登录凭证。Web已支持本地账号注册和登录，新注册账号默认未绑定样例客户；订单身份仍由可信管理入口配置。
 
 quit/exit/退出结束；/history显示授权公开历史；/new为同一用户新建会话；/human创建或复用工单；/handoffs查当前会话最近5条工单。相同thread_id和绑定可跨进程恢复。--no-stream为一次性展示，--verbose显示工具进度，结构化日志始终启用。
 
@@ -92,7 +93,7 @@ AdventureWorks样例含31,465个订单、121,317条明细、504种商品；订�
 
 本地multilingual-e5-small ONNX量化模型为384维，CPU推理，不需要GPU或Embedding API Key。每件有描述商品一份短文档，带passage前缀；查询带query前缀。建库按SHA-256复用未变文档，并在完整build_id构建就绪后原子切换活动指针。价格从商品表读取，未写入向量文本。
 
-目录价与历史成交价分开。源数据缺少可靠币种、支付流水、独立发票、实时库存、优惠、物流轨迹和退款政策时保持未知。发货不等于签收或付款。退款工具只登记/复用pending申请，订单行锁与唯一约束保证幂等，不执行资金退款。
+目录价与历史成交价分开。源数据缺少可靠币种、支付流水、独立发票、实时库存、优惠、物流轨迹和退款政策时保持未知。发货不等于签收或付款。退款由用户在「我的订单」中明确确认提交，订单行锁、提交编号和唯一约束防止重复；管理员审核留痕。聊天只指引入口与查询审核状态，不提交申请、不执行资金退款。
 
 ## 运行控制与日志
 
@@ -114,7 +115,7 @@ REQUEST_TIMEOUT_SECONDS默认90秒，范围1–300。模型单次完整响应最
 /opt/conda/envs/agent/bin/python health_monitor.py --component all
 ```
 
-人工目前由可信管理员用CLI处理，没有实时坐席或自动通知，处理完成不代表退款到账。健康检查按需检测PostgreSQL、容器资源和DeepSeek模型列表；列表接口成功不代表有余额或对话生成正常，没有持续监控告警。
+人工目前由管理员在网页或可信CLI处理，没有实时坐席或自动通知，处理完成不代表退款到账。健康检查按需检测PostgreSQL、容器资源和DeepSeek模型列表；列表接口成功不代表有余额或对话生成正常，没有持续监控告警。
 
 ## 初次部署、导入与更新
 
@@ -148,6 +149,10 @@ pg_ctlcluster 17 main start
 
 ## 验证
 
+2026-11-04记录了606项自动测试通过。80场景基线共95轮，原始规则79/80，回答模型评审94/95；评审与业务模型使用同一模型服务，存在同源偏差。M01后来按限定规则离线复核为效率警告，原报告保留。24种边界问法各5次，共119/120通过；唯一未通过的是环保知识问法额外执行了一次目录查询。HTTP/SSE追加消息专项7个时序场景的流程与最终业务答案均7/7。上述数字分别按场景、轮次及规则统计。
+
+2026-11-05开放公网测试入口后，43项Web及退款接口测试通过，并通过公网核对注册、登录、Secure Cookie、权限拦截、SSE回答和历史恢复。测试账号已清理。这些记录属于样例数据演示和开发回归，尚未进行压测或正式生产验收；原始对话及运行报告按仓库规则排除，方法见[当前评测](evals/CURRENT_EVALUATION.md)和[改进记录](docs/CONSTRAINT_UPDATES.md)。
+
 最新2026-10-24版本已通过222项自动测试、24场景47轮回归及两次原生工具闭环；[验证元数据](docs/validation/deepseek_protocol_20261024.json)包含范围与哈希。2026-10-26上传前核对服务器与仓库源码一致，未重跑模型评测。较早结果在下面按历史日期保留。
 
 前一业务版本记录logs/recovery_verification_20261022.json：200项自动测试、112个模拟场景157轮通过自动检查。2026-10-23索引隔离修复后共210项自动测试通过，本次未重跑模型场景。这不是生产准确率或独立人工验收。
@@ -167,3 +172,28 @@ pg_ctlcluster 17 main start
 ## DeepSeek工具消息兼容（2026-10-24）
 
 程序执行记录以资料视图提供给模型，真实工具调用保留推理字段；评分同时检查模型成功及任务完成。222项自动测试、24场景47轮回归与两次原生工具闭环记录见[修复说明](docs/DEEPSEEK_PROTOCOL.md)。较早定向测试中一次报价分组波动的失败记录保留，报价运行逻辑未改。
+
+## Web工作台（2026-10-29）
+
+已增加Vue 3聊天页面和FastAPI接口：账号注册登录、会话列表、历史恢复、SSE输出、我的工单及管理员领取/完成。通过服务器客户映射和接口所有权检查隔离账号，重复请求不会重复执行。现有命令行仍可使用。默认通过SSH隧道访问；配置`WEB_BIND_HOST=0.0.0.0`可接平台公网端口，同时必须把`WEB_BASE_URL`设为实际HTTPS站点地址，供Host、Origin和Secure Cookie校验使用。详细启动、账号管理、并发与边界见[Web使用说明](docs/WEB_APP.md)。
+
+执行链路排查已接入可选 LangSmith，普通用户页面不显示请求编号，详见 [配置与排查说明](docs/LANGSMITH_TRACING.md)。
+
+
+### 使用阿里云百炼的DeepSeek
+
+Key仍填写在项目`.env`的`DEEPSEEK_API_KEY`中，同时配置服务商、地域地址和模型名。当前北京地域已验证的配置为：
+
+```dotenv
+DEEPSEEK_PROVIDER=bailian
+DEEPSEEK_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+DEEPSEEK_MODEL=deepseek-v4.1-flash-1017
+```
+
+保存后重启Web服务；不要把百炼Key用于DeepSeek官方地址。其他地域应使用对应的Key和百炼业务空间地址。无需为此更换Embedding模型或重建向量索引。字段增量更新、参数依据、澄清状态与本轮测试见[说明](docs/CONSTRAINT_UPDATES.md)。
+
+
+提示词与专家组成的维护入口见[Agent 组成与销售 Skill](docs/AGENT_COMPOSITION.md)。本轮验证状态以该文档为准。
+
+
+客服只处理本项目的商品、订单账单、退款、工单和相关运行故障；算法、创作等无关请求统一引导回服务范围。见[服务范围](docs/SERVICE_SCOPE.md)。

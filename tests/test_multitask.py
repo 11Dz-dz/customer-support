@@ -213,15 +213,15 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(executions, ['0','1'])
         self.assertEqual(json.loads(results[0].content)['error_code'], 'REQUEST_TOOL_LIMIT')
 
-    def test_requested_recommendation_count_survives_invalid_expert_plan(self):
+    def test_invalid_expert_selection_is_not_filled_with_insertion_order_candidates(self):
         import langgraph_supervisor_1 as project
         from task_result import TaskResult, ToolEvidence
         task=ConversationTask(kind='product_search',parameters=TaskParameters(limit=1))
         result=TaskResult(current=[ToolEvidence(tool='search_products',data={'success':True,'products':[
             {'product_id':915,'name':'First'},{'product_id':916,'name':'Second'}]})])
         content,selected=project.limit_product_plan(task,result,'not valid JSON')
-        self.assertEqual(selected,[915])
-        self.assertEqual(json.loads(content)['product_ids'],[915])
+        self.assertEqual(selected,[])
+        self.assertEqual(json.loads(content)['kind'],'no_recommendation')
 
 
 class CompoundGraphTest(unittest.TestCase):

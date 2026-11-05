@@ -99,7 +99,7 @@ class ToolExecutionTest(unittest.TestCase):
 
     def test_write_tools_and_failed_reads_are_not_cached(self):
         executions = []
-        @tool("request_refund")
+        @tool("write_test_record")
         def write(order_id: str) -> dict:
             """模拟写入，不操作真实数据库。"""
             executions.append("write")
@@ -111,7 +111,7 @@ class ToolExecutionTest(unittest.TestCase):
             return {"success": False}
         with tool_execution_scope():
             for _ in range(2):
-                self.run_calls([write, read], [("request_refund", {"order_id": "1"}),
+                self.run_calls([write, read], [("write_test_record", {"order_id": "1"}),
                                               ("query_order", {"order_id": "1"})])
         self.assertEqual(executions.count("write"), 2)
         self.assertEqual(executions.count("failed_read"), 2)

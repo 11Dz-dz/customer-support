@@ -14,7 +14,6 @@ from tool_result import business_payload, exception_result
 
 CGROUP_ROOT = Path('/sys/fs/cgroup')
 PROC_ROOT = Path('/proc')
-API_URL = 'https://api.deepseek.com/models'
 MAX_RESPONSE_BYTES = 262144
 SAMPLE_SECONDS = 0.25
 
@@ -140,9 +139,11 @@ def _api():
              'note': '只检测模型列表接口与本次鉴权；未测试对话生成、账户余额或其他端点。'}
     if not key:
         return {**scope, 'success': False, 'status': 'unknown', 'error_code': 'API_KEY_NOT_CONFIGURED'}
-    request = Request(API_URL, headers={'Authorization': 'Bearer ' + key, 'Accept': 'application/json'}, method='GET')
+    from deepseek_model import provider_settings
+    settings=provider_settings()
+    request = Request(settings['base_url']+'/models', headers={'Authorization': 'Bearer ' + key, 'Accept': 'application/json'}, method='GET')
     try:
-        # 固定官方HTTPS目标；不跟随重定向，不传用户对话，不进行生成或自动重试。
+        # 仅允许配置服务商的HTTPS目标；不跟随重定向，不传用户对话，不进行生成或自动重试。
         from request_deadline import check_deadline, remaining_seconds
         check_deadline()
         with build_opener(_NoRedirect()).open(request, timeout=max(.001, remaining_seconds(5))) as response:
@@ -157,7 +158,7 @@ def _api():
         if not isinstance(data, dict) or not isinstance(data.get('data'), list):
             raise ValueError('invalid_models_response')
         ids = [item['id'] for item in data['data'] if isinstance(item, dict) and isinstance(item.get('id'), str)]
-        configured = os.getenv('DEEPSEEK_MODEL', 'deepseek-flash').strip()
+        configured = settings['model']
         listed = configured in ids
         return {**scope, 'success': True, 'status': 'healthy' if listed else 'degraded',
                 'http_status': code, 'configured_model': configured, 'configured_model_listed': listed,

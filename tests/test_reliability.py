@@ -68,7 +68,7 @@ class PresentationConsistencyTest(unittest.TestCase):
         with patch('task_execution.execute_operations') as execute:
             seed_product_search(task,'recommend',{}, {})
         operations=execute.call_args.args[1]
-        self.assertEqual(operations[0][1]['limit'],5)
+        self.assertEqual(operations[0][1]['limit'],20)
         self.assertEqual(task.parameters.limit,1)
 
     def test_historical_application_requires_a_fresh_authorized_same_order(self):
@@ -329,7 +329,10 @@ class ReliabilityGraphTest(unittest.TestCase):
         self.assertIs(project.validate_planner_counts(valid),valid)
         class Expert:
             def invoke(self,state,config):
-                return {'messages':state['messages']+[AIMessage(content='{"focus":["products"]}')]}
+                from tool_result import normalize_result
+                tool=next(m for m in reversed(state['messages']) if isinstance(m,ToolMessage))
+                pid=normalize_result(tool.content,tool.name).data['products'][0]['product_id']
+                return {'messages':state['messages']+[AIMessage(content=json.dumps({'focus':['products'],'product_ids':[pid]}))]}
         with CaseFixture('guest') as f,patch.object(project,'supervisor_router') as router,patch.object(project,'sales_agent',Expert()):
             router.invoke.side_effect=[missing,valid]
             result=invoke_turn(project.app,'recommend one product',f.thread_id)
@@ -445,9 +448,9 @@ class CategoryMetadataTest(unittest.TestCase):
         draft,selected=project.limit_product_plan(task,result,'{"focus":["products"],"product_ids":[1]}')
         answer,_=render_business_result(result,draft,'sales')
         saved=complete_task(task,result,selected)
-        self.assertEqual(saved.displayed_product_ids,[2])
+        self.assertEqual(saved.displayed_product_ids,[])
         self.assertEqual(saved.candidate_product_ids,[2])
-        self.assertIn('商品2',answer)
+        self.assertIn('选择清单未通过校验',answer)
         self.assertNotIn('商品1',answer)
 
     def test_expert_cannot_remove_the_task_category_from_a_search(self):

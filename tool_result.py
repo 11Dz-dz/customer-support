@@ -12,13 +12,15 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator, 
 ToolStatus=Literal['success','empty','invalid_argument','forbidden','temporary_error','error']
 DENIAL_CODES={'SESSION_UNBOUND','ORDER_NOT_ACCESSIBLE','SESSION_IDENTITY_CHANGED','IDENTITY_MISMATCH',
     'SESSION_BINDING_MISMATCH','TASK_TOOL_NOT_ALLOWED','SESSION_IDENTITY_CONFLICT','SESSION_IDENTITY_ERROR',
-    'RETRY_TOOL_NOT_ALLOWED'}
+    'RETRY_TOOL_NOT_ALLOWED','CHAT_WRITE_NOT_ALLOWED'}
 TEMPORARY_CODES={'TEMPORARY_ERROR','DATABASE_UNAVAILABLE','DATABASE_TIMEOUT','TOOL_TIMEOUT','SERVICE_UNAVAILABLE','RATE_LIMITED','REQUEST_DEADLINE'}
 EMPTY_CODES={'PRODUCT_NOT_FOUND','CATALOG_EMPTY','ERROR_CODE_NOT_FOUND'}
 INVALID_CODES={'INVALID_TOOL_ARGUMENTS','INVALID_QUERY_OPTIONS','INVALID_LIMIT','INVALID_PRICE_FILTER',
     'INVALID_SEARCH_QUERY','INVALID_CATEGORY','INVALID_QUANTITY','INVALID_REFUND_REASON','INVALID_BUNDLES',
     'INVALID_BUDGET','INVALID_PRODUCT_IDENTIFIER','UNKNOWN_TOOL','UNSUPPORTED_COMPONENT'}
 MESSAGES={
+ 'TASK_TOOL_NOT_ALLOWED':'本次查询与当前任务条件不一致，暂未执行，请重新说明查询要求。',
+ 'CHAT_WRITE_NOT_ALLOWED':'聊天不能提交退款申请，请在「我的订单」中选择订单并确认申请。',
  'PRODUCT_NOT_FOUND':'没有找到该商品，请核对商品编号或名称。',
  'CATALOG_EMPTY':'没有符合当前条件的商品，请调整条件后查询。',
  'ERROR_CODE_NOT_FOUND':'当前错误码说明中没有该代码，请补充具体报错信息。',
@@ -138,7 +140,7 @@ def normalize_result(value,tool='',*,transport_error=False):
     elif isinstance(value,dict) and type(value.get('success')) is bool:
         if value['success']:
             data={k:v for k,v in value.items() if k not in {'success','error_code','error','tool_status','tool_message','tool_retryable'}}
-            empty=tool in {'search_products','query_products','get_product_info'} and 'products' in data and not data['products'] and not data.get('product') and not data.get('matched_count',0)
+            empty=tool in {'search_products','query_products','get_product_info','query_product_variants'} and 'products' in data and not data['products'] and not data.get('product') and not data.get('matched_count',0)
             result=failure('CATALOG_EMPTY',data=data) if empty else ToolResult(status='success',message='本项查询或操作已完成。',data=data)
         else:
             code=value.get('error_code') or 'UNCLASSIFIED_TOOL_ERROR'
@@ -170,10 +172,13 @@ def validate_business_data(result,tool):
     data=result.data
     required={
       'query_order':{'order_id':int,'status_code':int,'items':list},
+      'query_my_orders':{'orders':list,'matched_count':int,'returned_count':int},
       'check_payment_status':{'order_id':int,'payment_status':str},
       'query_invoice':{'order_id':int,'invoice_status':str},
+      'query_refund_status':{'order_id':int,'refunds':list},
       'request_refund':{'order_id':int,'refund_id':str,'status':str},
       'query_products':{'products':list,'matched_count':int,'returned_count':int},
+      'query_product_variants':{'anchor':dict,'products':list,'matched_count':int,'returned_count':int,'variant_axis':str},
       'search_products':{'products':list,'returned_count':int},
       'check_system_status':{'component':str,'status':str,'checked_at':str,'elapsed_ms':(int,float)},
       'search_error_code':{'text':str},

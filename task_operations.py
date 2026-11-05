@@ -8,8 +8,8 @@ from tool_result import DENIAL_CODES, TEMPORARY_CODES, normalize_result
 
 NON_RETRYABLE_CODES = DENIAL_CODES | {'UNKNOWN_TOOL','INVALID_TOOL_ARGUMENTS','MALFORMED_TOOL_RESULT','RETRY_TOOL_NOT_ALLOWED'}
 MAX_OPERATION_ATTEMPTS = 3
-ROLE_TOOLS={'sales':{'query_products','search_products','get_product_info','check_promotion','calculate_price'},
-            'billing':{'query_order','query_invoice','check_payment_status','request_refund'},
+ROLE_TOOLS={'sales':{'query_products','search_products','get_product_info','check_promotion','calculate_price','query_product_variants'},
+            'billing':{'query_order','query_my_orders','query_invoice','check_payment_status','query_refund_status'},
             'tech_support':{'check_system_status','search_error_code'}}
 
 
@@ -53,8 +53,8 @@ def retry_operations(task):
 
 
 def operation_labels(operations):
-    names={'query_order':'订单查询','check_payment_status':'支付查询','query_invoice':'发票查询',
-           'get_product_info':'商品详情','check_promotion':'优惠查询','calculate_price':'报价计算',
-           'query_products':'商品筛选','search_products':'商品检索','request_refund':'退款申请',
+    names={'query_order':'订单查询','query_my_orders':'我的订单查询','check_payment_status':'支付查询','query_invoice':'发票查询',
+           'query_product_variants':'同款规格查询','get_product_info':'商品详情','check_promotion':'优惠查询','calculate_price':'报价计算',
+           'query_products':'商品筛选','search_products':'商品检索','request_refund':'历史退款申请','query_refund_status':'退款进度查询',
            'check_system_status':'系统检查','search_error_code':'错误码查询'}
     return '、'.join(dict.fromkeys(names.get(o.tool,'工具查询') for o in operations))

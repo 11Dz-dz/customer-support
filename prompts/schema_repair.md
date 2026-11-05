@@ -1,0 +1,9 @@
+上次输出未通过schema校验。
+请重新输出完整JSON对象，顶层必须有tasks数组；
+每项必有next，ref使用T1/T2等字母数字编号，task_type/focus/dependency_mode必须使用schema允许值，不增加字段。
+每项product_search必须填写parameters.limit：按用户指定的展示数量填写，没有指定则填5，不能缺失。
+clarification也必须带非空tasks任务候选；
+已知任务缺必填信息时创建对应任务而不填写顶层clarification。
+纯寒暄必须为conversation任务，不能留空tasks；
+查自己订单而不知编号用order_query＋order_scope=mine。
+并必须填写product_category，整车bicycles、零部件components、服装clothing、装备accessories、不限all。

@@ -1,5 +1,6 @@
 """统一命令：静态校验、参考集准备、真实评测、固定样本版本对比。"""
 import argparse
+import copy
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -14,7 +15,7 @@ def run_turn(app, spec, fixture, history_tools):
     from langchain_core.messages import AIMessage
     from chat_runtime import stream_turn, final_reply, public_text
     from evals.observer import EvaluationObserver
-    observer = EvaluationObserver(fixture.order_ids)
+    observer = EvaluationObserver(getattr(fixture, 'writable_order_ids', fixture.order_ids))
     before = app.get_state({"configurable": {"thread_id": fixture.thread_id}}).values.get("messages", [])
     query = spec["input"].format(**fixture.slots)
     trace = {"input": query, "answer": "", "route": None, "events": [], "first_text_ms": None,
@@ -28,6 +29,10 @@ def run_turn(app, spec, fixture, history_tools):
                 trace["events"].append(part["data"])
                 if part["data"].get("event") == "route":
                     trace["route"] = part["data"].get("agent")
+            if part['type'] == 'done':
+                event = part.get('event') or {}
+                trace['request_id'] = event.get('request_id')
+                trace['langsmith_trace_id'] = event.get('langsmith_trace_id')
     except Exception as exc:
         trace["error_type"] = type(exc).__name__
         trace["provider_status_code"] = getattr(exc, "status_code", None)
@@ -38,10 +43,18 @@ def run_turn(app, spec, fixture, history_tools):
     if answer:
         trace["answer"] = public_text(answer.content)
     trace["tool_requests"] = [c for m in delta if isinstance(m, AIMessage) for c in m.tool_calls]
-    trace.update(tools=observer.tools, models=observer.models, violations=observer.violations)
+    trace['tool_request_origins'] = [
+        {**c, 'origin': 'program' if m.additional_kwargs.get('program_execution') else 'model'}
+        for m in delta if isinstance(m, AIMessage) for c in m.tool_calls]
+    # A provider callback may finish after the application's timeout fallback.
+    # Freeze the observed turn; never mutate an earlier record during later cases.
+    trace.update(tools=copy.deepcopy(observer.tools), models=copy.deepcopy(observer.models),
+                 violations=copy.deepcopy(observer.violations))
+    trace['nodes'] = observer.nodes
     state=app.get_state({'configurable':{'thread_id':fixture.thread_id}}).values
     ids=set(state.get('turn_task_ids',[]))
-    trace['task_execution']=[{k:t.get(k) for k in ('task_id','kind','agent','status','failure_code')}
+    trace['task_execution']=[{k:t.get(k) for k in ('task_id','kind','agent','status','failure_code',
+                                                   'parameters','awaiting_fields','focus')}
                              for t in state.get('tasks',[]) if t['task_id'] in ids]
     trace["unavailable"] = observer.terminal_status is not None
     if trace["unavailable"]:

@@ -21,3 +21,28 @@ class ThinkingChatDeepSeek(ChatDeepSeek):
                 if isinstance(reasoning, str):
                     target['reasoning_content'] = reasoning
         return payload
+
+
+def provider_settings():
+    """Explicit provider/endpoint; never try a credential against other providers."""
+    import os
+    from urllib.parse import urlparse
+    provider=os.getenv('DEEPSEEK_PROVIDER','deepseek').strip().lower()
+    if provider not in {'deepseek','bailian'}:raise ValueError('DEEPSEEK_PROVIDER must be deepseek or bailian')
+    default=('https://dashscope.aliyuncs.com/compatible-mode/v1' if provider=='bailian' else 'https://api.deepseek.com')
+    base=os.getenv('DEEPSEEK_BASE_URL',default).strip().rstrip('/')
+    parsed=urlparse(base)
+    allowed=(parsed.hostname=='api.deepseek.com' if provider=='deepseek' else
+             parsed.hostname in {'dashscope.aliyuncs.com','dashscope-intl.aliyuncs.com','dashscope-us.aliyuncs.com'} or
+             bool(parsed.hostname and parsed.hostname.endswith('.maas.aliyuncs.com')))
+    if parsed.scheme!='https' or not allowed or parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError('Model endpoint must be an HTTPS endpoint of the configured provider')
+    model=os.getenv('DEEPSEEK_MODEL','deepseek-v4.1-flash-1017' if provider=='bailian' else 'deepseek-flash').strip()
+    return {'provider':provider,'base_url':base,'model':model}
+
+
+def provider_body(role):
+    # Model planning and tool selection use non-thinking for bounded response time.
+    # Genuine provider reasoning fields remain supported by the adapter above.
+    settings=provider_settings()
+    return {'enable_thinking':False} if settings['provider']=='bailian' else {'thinking':{'type':'disabled'}}

@@ -34,15 +34,36 @@ def emit_event(event_type: str, config=None, **fields):
         "time": datetime.now(timezone.utc).isoformat(),
         "request_id": metadata.get("request_id"),
         "thread_id": metadata.get("thread_id"),
+        **({'langsmith_trace_id':metadata['langsmith_trace_id']} if metadata.get('langsmith_trace_id') else {}),
         **fields,
     }
     _logger.info(json.dumps(event, ensure_ascii=False))
+    from langsmith_tracing import record_trace_event
+    record_trace_event(event)
     try:
         from langgraph.config import get_stream_writer
         get_stream_writer()(event)
     except (RuntimeError, KeyError):
         pass  # 普通 invoke 或独立工具测试没有自定义流消费者。
     return event
+
+
+def emit_planner_diagnostic(config=None, **fields):
+    """Private planner evidence, excluded from browser/SSE custom events."""
+    import hashlib
+    from langsmith_tracing import redact_trace_data, record_trace_event
+    metadata = (config or {}).get('metadata', {})
+    payload = redact_trace_data(fields)
+    encoded = json.dumps(payload, ensure_ascii=False)
+    if len(encoded) > 120000:
+        payload = {'truncated': True, 'original_chars': len(encoded),
+                   'sha256': hashlib.sha256(encoded.encode()).hexdigest(),
+                   'preview': encoded[:120000]}
+    event = {'event': 'planner_diagnostic', 'time': datetime.now(timezone.utc).isoformat(),
+             'request_id': metadata.get('request_id'), 'thread_id': metadata.get('thread_id'),
+             **payload}
+    _logger.info(json.dumps(event, ensure_ascii=False))
+    record_trace_event(event)
 
 
 class ToolEventHandler(BaseCallbackHandler):

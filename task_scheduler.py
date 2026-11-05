@@ -49,19 +49,38 @@ def _target(item, old):
     return None
 
 
-def prepare_plan(decision, state, query):
+def prepare_plan(decision, state, query, *, original_inputs=None, diagnostic=None):
     old = saved_tasks(state)
     if isinstance(decision, RouteDecision) and not isinstance(decision, PlannedTask):
         decision = TaskPlan(tasks=[PlannedTask(**decision.model_dump(), query=query)])
     if not isinstance(decision, TaskPlan):
         # Compatibility for existing adapters/tests that return an agent-only decision.
         decision = TaskPlan(tasks=[PlannedTask(next=decision.next, query=query)])
+    collapsed=False
+    if original_inputs is not None:
+        from constraint_updates import collapse_unpublished_replacement
+        decision,collapsed=collapse_unpublished_replacement(decision,old,original_inputs)
+    if decision.clarification:
+        # Asking for required input must keep the known business task. Generic
+        # ambiguity still stops execution and keeps the saved plan unchanged.
+        candidates=[]
+        for item in decision.tasks:
+            previous=_target(item,old)
+            candidate=prepare_task(item,previous.model_dump() if previous else None)
+            candidates.append(candidate)
+        if not candidates or any(t.status!='awaiting_input' for t in candidates):
+            raise PlanConflict(decision.clarification)
+
     # A bare identifier does not tell us which of several waiting order tasks it belongs to,
     # even if the model happens to choose a target. Enforce ambiguity outside the prompt.
     bare_order = AdventureWorksService._order_id(query.strip())
     waiting_orders = [t for t in old if t.status == 'awaiting_input' and 'order_id' in t.awaiting_fields]
     if bare_order is not None and len(waiting_orders) > 1:
         raise PlanConflict('有多项任务都在等待订单号，请说明这个编号对应哪一项（可说第一项、第二项或任务编号）。')
+    if original_inputs is not None:
+        from constraint_updates import validate_shared_sources,guard_ambiguous_target
+        validate_shared_sources(decision.tasks)
+        guard_ambiguous_target(decision.tasks,old,original_inputs)
     cancelled_ids = []
     if decision.cancel_all:
         for i, t in enumerate(old):
@@ -72,15 +91,34 @@ def prepare_plan(decision, state, query):
         if not decision.tasks:
             return old, cancelled_ids, None if cancelled_ids else '当前没有尚未完成的任务。'
 
+    from relative_price import relative_request,reference_bound,grounded_item,apply_bound
+    product_items=[i for i in decision.tasks if i.task_type in {'product_search','catalog_query'} and not i.cancel and not i.retry_failed]
+    relative=relative_request(original_inputs or [query]) if product_items else None
+    if relative and len(product_items)>1:raise PlanConflict('有多项商品需求，请说明相对价格比较对应哪一项。')
     planned, refs, touched, targets = [], {}, list(cancelled_ids), set()
     for item in decision.tasks:
+        if original_inputs is not None and item.retry_failed:
+            from constraint_updates import customer_changes_saved_constraints
+            candidates=[t for t in old if t.status!='cancelled' and
+                        (t.task_id==item.target_task_id if item.target_task_id else t.kind==item.task_type)]
+            if len(candidates)==1 and customer_changes_saved_constraints(item,candidates[0],original_inputs):
+                item=item.model_copy(update={'retry_failed':False,'continuation':True,'target_task_id':candidates[0].task_id})
         previous = _target(item, old)
+        bound=None
+        if relative and item in product_items:
+            if previous is None:
+                candidates=[t for t in old if t.kind in {'product_search','catalog_query'} and t.status!='cancelled' and t.displayed_product_ids]
+                if len(candidates)!=1:raise PlanConflict('请说明要与哪件已展示商品比较价格。')
+                previous=candidates[0]
+            if previous.kind not in {'product_search','catalog_query'}:raise PlanConflict('请先确定要比较的商品推荐或目录清单。')
+            bound=reference_bound(previous,item,state.get('messages',[]),relative)
+            item=grounded_item(item,previous,relative)
         if item.retry_failed:
             if previous is None or previous.status not in {'partial','failed'} or not retry_operations(previous):
                 raise PlanConflict('没有可安全重试的失败只读操作。权限受限、已完成的操作和业务写入不会自动重试；请核对后重新提出具体请求。')
-        if previous and previous.task_id in targets:
+        if previous and previous.task_id in targets and item.task_type!='product_variants':
             raise PlanConflict('同一任务出现了多次修改，请明确每项任务的要求。')
-        if previous:
+        if previous and item.task_type!='product_variants':
             targets.add(previous.task_id)
         if item.cancel and previous is None:
             raise PlanConflict('没有找到要取消的任务，请说明要取消哪一项。')
@@ -88,6 +126,7 @@ def prepare_plan(decision, state, query):
             raise PlanConflict('该任务已取消，请提出一项新的请求。')
         # An explicit target is the only source of parameter inheritance in a multi-task context.
         values = item.model_dump(include=set(RouteDecision.model_fields))
+        values['parameters']=item.parameters.model_dump(exclude_unset=True)
         values['continuation'] = bool(previous)
         if item.retry_failed:
             # "Retry payment" may be labelled payment_query by the model, but its failed
@@ -95,10 +134,30 @@ def prepare_plan(decision, state, query):
             values['task_type']=previous.kind
             values['next']=previous.agent
             values['focus']=list(previous.focus)
+        conversion_reason = None
         if item.task_type == 'product_detail' and not item.parameters.product_ids and item.parameters.keyword and not item.depends_on:
             # Names/model families identify a search, whereas get_product_info direct tasks require IDs.
             values['task_type'] = 'product_search'
+            conversion_reason = 'detail_without_ids_has_keyword_and_no_dependencies'
         task = prepare_task(RouteDecision.model_validate(values), previous.model_dump() if previous else None)
+        if diagnostic is not None:
+            declared = {key for key, value in item.parameters.model_dump(
+                exclude_none=True, exclude_unset=True).items() if value != []}
+            inherited = task.parameters.model_fields_set - declared if previous else set()
+            diagnostic(task_ref=item.ref, task_id=task.task_id,
+                       stage='task_prepared_before_constraint_validation',
+                       conversion_reason=conversion_reason,
+                       previous_task_id=previous.task_id if previous else None,
+                       before=item.model_dump(mode='json'), after=task.model_dump(mode='json'),
+                       parameter_origins_stage='prepared_before_validation',
+                       parameter_origins={key: ('program' if key=='clear_fields' else
+                           'model' if key in declared else 'inherited' if key in inherited else 'default')
+                           for key in type(task.parameters).model_fields})
+        if task.kind=='catalog_query' and item.parameters.operation=='coverage':
+            task.parameter_sources['coverage_source']={'source_index':item.source_index,'source_text':item.source_text}
+        if task.kind=='product_variants' and not item.cancel and not item.retry_failed:
+            from product_variants import bind_variant_task
+            task=bind_variant_task(task,item,previous,state,original_inputs or [query])
         if item.retry_failed:
             allowed = None
             if task.parameters != previous.parameters:
@@ -125,6 +184,8 @@ def prepare_plan(decision, state, query):
             task.task_id=uuid4().hex
             task.revision=1
         if previous:
+            if previous.parameters.order_scope=='mine' and task.parameters.order_id is not None and not task.focus:
+                task.focus=list(previous.focus)
             task.evidence_call_ids = list(previous.evidence_call_ids)
             task.candidate_product_ids = list(previous.candidate_product_ids)
             task.displayed_product_ids = list(previous.displayed_product_ids)
@@ -139,10 +200,35 @@ def prepare_plan(decision, state, query):
             task = previous.model_copy(deep=True)
             task.status = 'cancelled'
             task.revision += 1
+        if original_inputs is not None:
+            from constraint_updates import apply_constraint_updates
+            single_scope=sum((t.task_type=='quote' if task.kind=='quote' else t.task_type in {'product_search','catalog_query','product_detail'}) and not t.cancel for t in decision.tasks)==1
+            if task.kind=='quote' and not item.cancel and not item.retry_failed:
+                from quote_items import scoped_lines
+                lines,_=scoped_lines(original_inputs,item,single_scope=single_scope)
+                # Per-line quantities are validated independently, not coerced
+                # into the legacy common-quantity field by the scalar validator.
+                scoped_item=item.model_copy(deep=True)
+                if lines:
+                    task.parameters.quantity=None
+                    scoped_item.parameters.quantity=None
+                    scoped_item.field_updates=[u for u in scoped_item.field_updates if u.field!='quantity']
+                task=apply_constraint_updates(task,scoped_item,previous,original_inputs,single_scope=single_scope and not lines)
+                from quote_items import bind_quote
+                task=bind_quote(task,item,previous,original_inputs,single_scope=single_scope)
+            else:task=apply_constraint_updates(task,item,previous,original_inputs,single_scope=single_scope)
+            if collapsed:task.parameter_changes.append({'field':'product_category','action':'collapsed_unpublished_replacement'})
+        if bound is not None:task=apply_bound(task,bound)
         task.query = item.query or query
         if task.kind == 'product_search' and not item.retry_failed:
-            from task_state import explicit_product_count
-            count=explicit_product_count(task.query)
+            from task_state import explicit_product_count,authoritative_product_count
+            count=authoritative_product_count(original_inputs if original_inputs is not None else [query],decision.tasks,item)
+            # In an inherited recommendation, an omitted count is not permission
+            # to replace the user's saved count with one in a model-written query.
+            single_scope=sum(t.task_type in {'product_search','catalog_query','product_detail'} and not t.cancel for t in decision.tasks)==1
+            inherit=bool(previous and previous.kind==task.kind and single_scope)
+            if count is None and not inherit:count=explicit_product_count(task.query)
+            if count is None and inherit:count=previous.parameters.limit
             if count is not None:task.parameters.limit=count
         if item.depends_on:
             task.depends_on = list(item.depends_on)
@@ -168,7 +254,7 @@ def prepare_plan(decision, state, query):
             raise PlanConflict('商品信息的来源任务必须明确。')
         if t.dependency_mode == 'order_products' and t.kind != 'product_detail':
             raise PlanConflict('订单商品交接只用于商品详情查询。')
-        if t.dependency_mode == 'selected_product' and t.kind not in {'quote', 'product_detail'}:
+        if t.dependency_mode == 'selected_product' and t.kind not in {'quote', 'product_detail','product_variants'}:
             raise PlanConflict('商品选择的后续操作不明确。')
     by_id = {t.task_id: t for t in combined}
     def visit(key, chain):
@@ -257,15 +343,20 @@ def resolve_dependencies(task, by_id, messages):
             task.parameters.product_position = None
         else:
             task.parameters.product_ids = [pid for pid in parent.parameters.product_ids if pid in verified]
+        if task.kind=='product_variants' and len(task.parameters.product_ids)==1:
+            task.parameters.variant_anchor_id=task.parameters.product_ids[0]
+            for field in ('min_price','max_price'):
+                if getattr(task.parameters,field) is None and task.parameter_sources.get(field,{}).get('operation')!='clear':
+                    setattr(task.parameters,field,getattr(parent.parameters,field))
     task.awaiting_fields = missing_fields(task)
     task.status = 'awaiting_input' if task.awaiting_fields else 'ready'
     return task
 
 
-def choose_task(tasks, turn_ids, messages, steps):
+def choose_task(tasks, turn_ids, messages, steps, *, max_steps=4):
     by_id = {t.task_id: t for t in tasks}
     resolved = [resolve_dependencies(t, by_id, messages) if t.task_id in turn_ids else t for t in tasks]
-    if steps >= 4:
+    if steps >= max_steps:
         return resolved, None
     for t in resolved:
         if t.task_id in turn_ids and t.status == 'ready':

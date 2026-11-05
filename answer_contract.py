@@ -3,6 +3,7 @@ import json
 import re
 from decimal import Decimal, InvalidOperation
 from typing import Literal
+from prompt_catalog import read_prompt
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
@@ -10,6 +11,7 @@ from adventureworks_service import DATE_LABELS
 from task_result import collect_evidence, collect_task_result, evidence_pairs
 from task_operations import DENIAL_CODES, operation_labels
 from catalog_filters import category_matches
+from catalog_query import matches as query_matches
 
 
 class EvidenceQuote(BaseModel):
@@ -21,26 +23,16 @@ class EvidenceQuote(BaseModel):
 
 class AnswerPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    kind: Literal["data", "ask_order", "ask_product", "refund_policy", "unknown", "greeting"] = "data"
+    kind: Literal["data", "ask_order", "ask_product", "refund_policy", "unknown", "greeting", "no_recommendation"] = "data"
     focus: list[Literal["order", "dates", "amounts", "items", "payment", "invoice", "refund",
                         "catalog", "products", "quote", "inventory", "promotion"]] = Field(default_factory=list, max_length=13)
     product_ids: list[StrictInt] = Field(default_factory=list, max_length=20)
     order_id: StrictInt | None = None
     explanations: list[EvidenceQuote] = Field(default_factory=list, max_length=5)
+    recommendation_status: Literal['no_candidates','insufficient_evidence','invalid_selection','retrieval_failed'] | None = None
 
 
-PLAN_INSTRUCTION = """
-工具结果采用schema_version=1格式：外层status是执行结果，业务事实在data内；data.status才是订单/申请/健康等业务状态。
-empty表示没有匹配数据，不是临时故障；invalid_argument需修改参数，forbidden不可绕过，只有temporary_error且retryable=true的只读操作可有限重试。业务写入不可自行重试。
-最终回答由程序核对证据并渲染。工具选择和调用方式保持正常；结束工具推理时，最后一条回答必须只返回一个JSON回答计划，不要输出自然语言草稿：
-{"kind":"data","focus":["products"],"product_ids":[776],"order_id":null,"explanations":[]}
-kind只能为data/ask_order/ask_product/refund_policy/unknown/greeting。
-focus只能从order,dates,amounts,items,payment,invoice,refund,catalog,products,quote,inventory,promotion选择。
-product_ids和order_id必须来自本轮或授权历史工具结果。focus按用户请求选择，例如订单状态用order，订单金额用amounts，推荐用products，组合报价用quote。
-解释可放explanations，每项为{"product_id":776,"field":"description_zh","text":"工具描述中的逐字原文"}；只能逐字引用description_zh或description_en，不得添加没有证据的性能、金额、日期、库存或承诺。
-缺订单号用ask_order，咨询退款政策且没有政策文本用refund_policy。工具失败也返回data，程序会展示真实错误，不要绕过错误复用旧订单。
-涉及多商品方案时先调用calculate_price的bundles模式取得每组真实合计，不自行填写组合价格。订单成交价和商品目录价分别使用各自证据。
-"""
+PLAN_INSTRUCTION = read_prompt("answer_plan")
 
 
 def money(value):
@@ -86,6 +78,10 @@ def _catalog(value):
     filters = value.get("filters", {})
     labels = {"keyword": "关键词", "min_price": "最低标价", "max_price": "最高标价", "color": "颜色", "size": "尺寸"}
     conditions = [f"{labels[key]}={cell(filters[key])}" for key in labels if filters.get(key) is not None]
+    if filters.get('catalog_filter'):
+        from catalog_query import describe_filters
+        label=describe_filters(filters['catalog_filter'])
+        conditions=[label] if label else []
     scope = "全部符合条件的目录商品" if conditions else "全部目录商品"
     parts = ["目录查询范围：" + scope + ("（" + "，".join(conditions) + "）" if conditions else "") + "。",
              f"有效匹配记录：{value['matched_count']}条。"]
@@ -190,13 +186,13 @@ def render_business_result(result, draft, role):
         plan, fallback = AnswerPlan(), True
     known = product_map(history + current)
     available_products = {pid:p for pid,p in product_map(current if current else history).items()
-                          if category_matches(p,result.product_category)}
+                          if category_matches(p,result.product_category) and query_matches(p,result.catalog_filter)}
     if any(pid not in available_products for pid in plan.product_ids):
         plan.product_ids = []
         fallback = True
     focus = set(plan.focus)
     errors = [value for name, value in current if value.get("success") is False
-              and name in {"query_order", "query_invoice", "check_payment_status", "request_refund"}]
+              and name in {"query_order", "query_my_orders", "query_invoice", "check_payment_status", "query_refund_status", "request_refund"}]
     if errors and (not any(v.get('success') is True for _,v in current)
                    or any(v.get('error_code') in DENIAL_CODES for v in errors)):
         code = errors[-1].get("error_code")
@@ -208,6 +204,18 @@ def render_business_result(result, draft, role):
             answer = errors[-1].get('tool_message') or "本次订单操作未成功，暂时无法核实结果。"
         return answer, {"plan_fallback": fallback, "mode": "verified_error"}
     successful = [(name, value) for name, value in current if value.get("success") is True]
+    coverages=[v for n,v in successful if n=='query_products' and v.get('operation')=='coverage']
+    if role=='sales' and coverages:
+        from catalog_coverage import render_coverage
+        return render_coverage(coverages[-1]),{'mode':'catalog_coverage','template_id':coverages[-1]['template_id']}
+    overviews=[v for n,v in successful if n=='query_products' and v.get('operation')=='overview']
+    if role=='sales' and overviews:
+        from catalog_query import render_overview
+        return render_overview(overviews[-1]),{'plan_fallback':fallback,'mode':'catalog_overview'}
+    variants=[v for n,v in successful if n=='query_product_variants']
+    if role=='sales' and variants:
+        from product_variants import render_variants
+        return render_variants(variants[-1]),{'plan_fallback':fallback,'mode':'verified_product_variants'}
     # 有本轮结果时，不回退旧结果覆盖当前失败/空查询。
     source = successful if current else [(n, v) for n, v in history if v.get("success") is True]
     parts = []
@@ -215,12 +223,19 @@ def render_business_result(result, draft, role):
         reasons=list(dict.fromkeys(v.get('tool_message') or '本项操作未成功，暂时无法核实结果。' for _,v in current))
         return '\n'.join(reasons), {"plan_fallback": fallback, "mode": "verified_error"}
     if role == "billing":
+        listings=[v for n,v in successful if n=='query_my_orders']
+        if listings:return render_my_orders(listings[-1]),{'plan_fallback':fallback,'mode':'account_order_candidates'}
+        status_reads = [v for n,v in successful if n == 'query_refund_status']
+        if status_reads and (focus == {'refund'} or not any(n=='query_order' for n,_ in successful)):
+            return render_refund_status(status_reads[-1]), {"plan_fallback":fallback,"mode":"live_refund_status"}
         active_refunds = [e.data for e in result.current if e.tool == 'request_refund'
                           and e.data.get('success') is True and e.data.get('refund_id')]
         if plan.kind == "refund_policy" and not active_refunds:
             return ("当前没有可查询的退款政策文本，无法核实条件、时限或费用规则。"
                     "登记申请仅进入待审核状态，当前未接入资金退款。"), {"plan_fallback": fallback, "mode": "policy_unavailable"}
-        values = [v for _, v in source if v.get("order_id") is not None]
+        if status_reads:
+            parts.append(render_refund_status(status_reads[-1]))
+        values = [v for n, v in source if n != 'query_refund_status' and v.get("order_id") is not None]
         wanted = result.requested_order_id if result.requested_order_id is not None else plan.order_id
         if active_refunds:
             wanted = active_refunds[-1]["order_id"]
@@ -278,6 +293,32 @@ def render_business_result(result, draft, role):
         else:
             parts.append("请提供需要查询的订单号。当前没有与本次请求对应、可确认的订单结果。")
     else:
+        if plan.kind=='no_recommendation':
+            if plan.recommendation_status=='no_candidates':
+                scope=result.catalog_scope
+                if scope and scope.get('matched_count')==0:
+                    if scope.get('catalog_filter'):
+                        from catalog_query import describe_filters
+                        return '当前样例目录未记录符合本次结构化条件'+describe_filters(scope['catalog_filter'])+'的有效标价商品。可调整条件后查询；这不代表实时库存。',{'plan_fallback':fallback,'mode':'verified_empty_catalog'}
+                    filters=[]
+                    if scope.get('min_price') is not None:filters.append('目录标价不低于'+money(scope['min_price']))
+                    if scope.get('max_price') is not None:filters.append('目录标价不超过'+money(scope['max_price']))
+                    categories={'bicycles':'自行车整车','components':'自行车零部件','clothing':'骑行服装','accessories':'骑行装备'}
+                    for field,label in [('color','颜色'),('size','尺寸')]:
+                        if scope.get(field) is not None:filters.append(label+'为'+str(scope[field]))
+                    item=categories.get(scope.get('product_category'),'商品')
+                    condition='（'+'，'.join(filters)+'）' if filters else ''
+                    text='当前样例目录中，没有符合当前价格和类别条件'+condition+'的'+item+'。可以调整预算或商品类别后再查询。'
+                    return text+'\n以上为历史样例目录，不代表实时售价或库存，币种未知。',{'plan_fallback':fallback,'mode':'verified_empty_catalog'}
+                text=('本次检索未找到符合完整需求的候选；当前价格和类别范围内仍有商品，不能据此断言全目录没有匹配。'
+                      if scope else '本次检索未找到符合当前需求的候选；全目录范围尚未核实，无法确认是否有其他匹配。')
+                return text,{'plan_fallback':fallback,'mode':'empty_retrieval'}
+            if plan.recommendation_status=='retrieval_failed':
+                return '商品查询未成功完成，暂时无法核实推荐结果；不能将查询失败解释为没有匹配商品。',{'plan_fallback':fallback,'mode':'retrieval_failed'}
+            if plan.recommendation_status=='invalid_selection':
+                return '商品选择清单未通过校验，本次未形成可靠推荐；这不表示目录中没有符合条件的商品。',{'plan_fallback':fallback,'mode':'selection_invalid'}
+            return ('已检索到候选，但本次未能根据描述确认足够符合需求的推荐。请补充或缩小用途、对象或必需特征；'
+                    '不会将未经确认的候选直接作为推荐。'),{'plan_fallback':fallback,'mode':'recommendation_unconfirmed'}
         quotes = [v for n, v in successful if n == "calculate_price" and (v.get("bundles") is not None or v.get("quantity") is not None)]
         catalogs = [v for n, v in source if n == "query_products"]
         if quotes:
@@ -295,7 +336,7 @@ def render_business_result(result, draft, role):
                 if signature not in seen:
                     parts.append(_catalog(value))
                     seen.add(signature)
-        current_products = {pid:p for pid,p in product_map(source).items() if category_matches(p,result.product_category)}
+        current_products = {pid:p for pid,p in product_map(source).items() if category_matches(p,result.product_category) and query_matches(p,result.catalog_filter)}
         selected = plan.product_ids or list(current_products)[:10]
         shown = []
         if not quotes and (not catalogs or "products" in focus):
@@ -347,3 +388,38 @@ def verified_chunks(text, limit=240):
     """分段输出已经校验的最终正文，拼接必须与持久化内容逐字一致。"""
     for offset in range(0, len(text), limit):
         yield text[offset:offset+limit]
+
+
+def render_refund_status(value):
+    from refund_service import STATUS_LABELS,FUNDS_NOTE
+    parts=[f"订单：{value['order_id']}。"]
+    if not value['refunds']:
+        parts.append('当前没有查询到退款申请。需要申请时请到网页「我的订单」中确认提交。')
+    for row in value['refunds']:
+        parts.append(f"申请编号：{cell(row['refund_id'])}；状态：{STATUS_LABELS.get(row['status'],'未知')}。")
+        parts.append(f"申请原因：{cell(row['reason'])}。")
+        if row.get('review_note'):parts.append(f"审核说明：{cell(row['review_note'])}。")
+    parts.append(FUNDS_NOTE)
+    return '\n'.join(parts)
+
+
+def render_my_orders(value):
+    filtered=value.get('refund_filter') is not None
+    count=value['matched_count'];rows=value['orders']
+    if not rows:
+        return ('当前账号下没有查询到符合该退款状态的订单。可以在「我的订单」中查看其他订单。' if filtered
+                else '当前账号下没有查询到订单，请联系管理员核对账号的客户绑定。')
+    parts=[f"在当前账号下查到{count}笔"+('符合查询状态的订单。' if filtered else '订单。')]
+    for i,row in enumerate(rows,1):
+        parts.append(f"{i}. 订单{row['order_number']}（订单号{row['order_id']}）；履约状态：{cell(row['fulfillment_status'])}。")
+        parts.append(f"订单应付总额：{money(row['total_due'])}（币种未知，不代表已支付金额）。")
+        if row.get('refund_id'):
+            parts.append(f"退款申请：{cell(row['refund_id'])}；{cell(row['refund_status_label'])}。")
+            if row.get('reason'):parts.append('申请原因：'+cell(row['reason'])+'。')
+            if row.get('review_note'):parts.append('审核说明：'+cell(row['review_note'])+'。')
+        elif not filtered:parts.append('当前没有退款申请记录。')
+    if value.get('has_more'):parts.append(f"本次仅展示最近{len(rows)}笔，可要求最多20笔或到「我的订单」查看。")
+    if count>1:parts.append('请回复要继续查询的订单号，我再为你查询该笔订单。')
+    else:parts.append('已定位到这笔订单，可以继续询问它的详情或退款进度。')
+    if filtered or any(r.get('refund_id') for r in rows):parts.append(value['funds_note'])
+    return '\n'.join(parts)

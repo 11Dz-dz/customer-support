@@ -41,6 +41,15 @@ class EvaluationObserver(BaseCallbackHandler):
         self._tool_runs, self._model_runs = {}, {}
         self._lock = threading.Lock()
         self.terminal_status = None
+        self.nodes = []
+
+    def on_chain_start(self, serialized, inputs, *, run_id, metadata=None, tags=None, name=None, **kwargs):
+        metadata = metadata or {}
+        node = metadata.get('langgraph_node')
+        # Only graph steps, not every inner runnable inheriting its parent's metadata.
+        if node and any(str(tag).startswith('graph:step:') for tag in (tags or [])):
+            with self._lock:
+                self.nodes.append({'name': node, 'run_id': str(run_id)})
 
     def on_tool_start(self, serialized, input_str, *, run_id, inputs=None, **kwargs):
         name = (serialized or {}).get("name", "unknown")

@@ -1,0 +1,69 @@
+{
+  "prompts": {
+    "answer_plan": {
+      "sha256": "ef54789551f8c40203091ac7f3e48b7e18fa9566b4a0e6787d0be0e357e583b8",
+      "characters": 938
+    },
+    "tech_support": {
+      "sha256": "0887ca26753c291f049a0650cf579b597be11ca43b54def88d8eafceb346c86b",
+      "characters": 256
+    },
+    "sales": {
+      "sha256": "41abb53138ec5898e4688c0c4494f7bd781debb06230eb6292f7a490ca29c10c",
+      "characters": 843
+    },
+    "billing": {
+      "sha256": "eb565ae0ef18795381e8c4105952d8c4b8d2fabada23c6fd797643121c8c6b89",
+      "characters": 523
+    },
+    "router": {
+      "sha256": "d14bb5d365d0c0aaecd6d0439fc77e3fbe3c9fe5048d55c729c933232e1a7590",
+      "characters": 4682
+    },
+    "schema_repair": {
+      "sha256": "d1e87566641a79661bbd8fb0347df5a492d89027c8a06480a4a28d752fac9ad7",
+      "characters": 398
+    },
+    "inflight": {
+      "sha256": "aaace2cc39874ba2edbc9ff375849fcaed9cfa13a70f893df1788107e3b11292",
+      "characters": 220
+    },
+    "constraint_repair": {
+      "sha256": "bf3e17f3d7dbde35a4e8473cb02c77cd4cecb5d1cb24d67f6bb0d075a507894c",
+      "characters": 239
+    },
+    "execution": {
+      "sha256": "35a73826d782723a2e969e1ffe8c55065a8e9de3a7f46e49c87dfeb58edf2a78",
+      "characters": 120
+    },
+    "final": {
+      "sha256": "30ee45fe3c380d6340700064aeca21a80f0fd13483c99365259e7e56fab2ec6a",
+      "characters": 44
+    },
+    "evidence": {
+      "sha256": "e6fabdf99e4d21b3dc2f680ca6ef2b2c671496ab6397df3bbdb777334a1aaaa1",
+      "characters": 54
+    }
+  },
+  "tools": {
+    "_business_tool": "46ebc03c6b0cea8c0eddc6d26511f4ccdcc8af10ab12336e3bd90169ef87bae8",
+    "_billing_tool": "16eda70b0128bfddf05ec9bb8f9d883ccb12fc370707075420dfb6cfc75a9ef1",
+    "check_system_status": "f1a14c4ba905d5f8a43bb5dbebd7fb52068906cf14522cea781b8772b62c0fa4",
+    "search_error_code": "c6d3a8b052f53ade3d42569f2469dec81fda579138865c913c8eb9484e6244ee",
+    "query_products": "b180a70018d31ca28e5727ceb91c8f9c69f95f1073ee48116d4a77f49fd561a5",
+    "search_products": "c1718d4a9b8a26c9c0ab3c21b11cdc27472603f4c4349923985071982a84d075",
+    "get_product_info": "48e198ef95cb04b9b6c550b5df3e6f888338df31329595c7377f8d0de52e7394",
+    "check_promotion": "a1cf444bd326bcbbb30291b0b543f8f5827b7c65023d33f7ebfaad2495617557",
+    "BundleItem": "1631598518894b0eb9663e939457a164c1d740943403be5e55db41e79a10526c",
+    "ProductBundle": "e5b6d3940ff6d4a6a5d2510aa5f9160c8c4cf9d272e9dc3fec0b6aa3b1f80fcb",
+    "calculate_price": "fa43f6a81d8bd19577116ab171daf9a1c14c6a911ec2fddbf1f0953e30128ea7",
+    "query_my_orders": "d25b7f19fcd471f498ed4267ec5fcace1c63f4f2176abdaaedb3c93895dc3c9d",
+    "query_order": "96f56e8697eb7867458e43c8c3bb0d3d9075e09e6c5f7de53615b828ae00c9ee",
+    "query_invoice": "f70718e9cc42534e2cdf73997425d738dee700808366f1955f8cad1792e64850",
+    "check_payment_status": "ec9586177650c38f8bdd37037f9a54a5769a28ec9eb028f3ee554ddc8427b8c2",
+    "request_refund": "8114c67844127a724ed40d48aa6e85b08594d7b768a643d6c30bb89c18898718",
+    "query_refund_status": "ef2f9db1b20812365980fac3c8b360049175f61abd018b1edaa1c516d115efa1"
+  },
+  "state": "b3369cce969b901f86b1b02adcaf733e58ff3b35eb6448dedd2243d43824f860",
+  "ast_format": "portable fields; ignore empty Python 3.12 type_params only"
+}

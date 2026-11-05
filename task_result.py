@@ -25,9 +25,11 @@ class TaskResult(BaseModel):
     from_history: bool = False
     requested_order_id: int | None = None
     product_category: str | None = None
+    catalog_filter: dict | None = None
     retained: list[ToolEvidence] = Field(default_factory=list)
     operations: list[OperationRecord] = Field(default_factory=list)
     is_retry: bool = False
+    catalog_scope: dict[str, Any] | None = None
 
 
 def collect_evidence(messages):
@@ -73,6 +75,7 @@ def collect_task_result(messages, task=None):
                       history=history, awaiting_fields=task.awaiting_fields if task else [],
                       from_history=not current, requested_order_id=task.parameters.order_id if task else None,
                       product_category=task.parameters.product_category if task and task.kind=='product_search' else None,
+                      catalog_filter=task.parameters.catalog_filter.model_dump(mode='json') if task and task.parameters.catalog_filter is not None else None,
                       retained=retained,operations=operations,is_retry=is_retry)
 
 

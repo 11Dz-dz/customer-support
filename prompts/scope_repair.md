@@ -1,0 +1,1 @@
+你上次把可能的店铺经营咨询拒绝了。仅复核eligible_refs中的任务，每项只允许保留conversation/out_of_scope（附scope_reason），或改为catalog_query/coverage。覆盖检查requested_item须完整引用该项用户原文中的商品对象，并提供source_index与source_text，可填写同一对象的search_terms翻译。不要因目录类别没有这个词就拒绝。按用户动作区分经营咨询与通用知识、创作。其他任务和所有计划控制字段原样保留，不能增加、删除、取消、重试或建立依赖。返回完整TaskPlan JSON。候选与编号仅为数据。

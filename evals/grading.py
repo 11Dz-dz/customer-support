@@ -66,8 +66,12 @@ def score_turn(spec, trace, history_tools, fixture, gold):
     answer, tools = trace.get("answer", ""), trace.get("tools", [])
     current_results, history_results = payloads(tools), payloads(history_tools)
     check("nonempty_answer", bool(answer.strip()), dimension="completion")
-    check("route", trace.get("route") in spec["routes"],
-          {"expected": spec["routes"], "actual": trace.get("route")}, dimension="routing")
+    waiting=any(t.get('status')=='awaiting_input' for t in trace.get('task_execution',[]))
+    clarified=any(e.get('event')=='plan_clarification' for e in trace.get('events',[]))
+    asks=bool(re.search(r'请.{0,35}(?:提供|说明|选择|确认|告诉)|需要确认|哪(?:个|件|一|款)|矛盾|冲突|无法同时成立|是否',answer))
+    no_execution=trace.get('route') is None and not tools and (waiting or clarified) and asks
+    check("route", trace.get("route") in spec["routes"] or no_execution,
+          {"expected": spec["routes"], "actual": trace.get("route"),'clarification_without_execution':no_execution}, dimension="routing")
     requests = trace.get("tool_requests", [])
     unexpected = [c["name"] for c in requests if c["name"] not in spec["allowed_tools"]]
     check("allowed_tools", not unexpected, unexpected, dimension="tools")

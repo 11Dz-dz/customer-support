@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "specialists": [
+    {
+      "name": "tech_support",
+      "prompt": "tech_support",
+      "tools": [
+        "check_system_status",
+        "search_error_code"
+      ],
+      "skills": []
+    },
+    {
+      "name": "sales",
+      "prompt": "sales",
+      "tools": [
+        "query_products",
+        "search_products",
+        "get_product_info",
+        "check_promotion",
+        "calculate_price",
+        "query_product_variants"
+      ],
+      "skills": [
+        "product-recommendation",
+        "product-comparison"
+      ]
+    },
+    {
+      "name": "billing",
+      "prompt": "billing",
+      "tools": [
+        "query_my_orders",
+        "query_order",
+        "query_invoice",
+        "check_payment_status",
+        "query_refund_status"
+      ],
+      "skills": []
+    }
+  ]
+}

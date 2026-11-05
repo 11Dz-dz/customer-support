@@ -19,3 +19,16 @@ def category_conditions(category=None, *, alias=''):
 
 def category_matches(product,category=None):
     return category in (None,'all') or product.get('product_subcategory_id') in CATEGORY_SUBCATEGORIES.get(category,())
+
+
+def facet_conditions(color=None,size=None,*,alias=''):
+    if alias not in {'','p.'}:raise ValueError('unsupported alias')
+    clauses=[];params=[]
+    for field,value in [('color',color),('size',size)]:
+        if value is not None:
+            clauses.append(alias+field+' = %s');params.append(value)
+    return clauses,params
+
+
+def facets_match(product,color=None,size=None):
+    return (color is None or product.get('color')==color) and (size is None or product.get('size')==size)

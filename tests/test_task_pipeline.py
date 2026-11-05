@@ -85,7 +85,7 @@ class TaskExecutionTest(unittest.TestCase):
         task = ConversationTask(kind='product_search', parameters=TaskParameters(keyword='tube', max_price=5))
         with tool_execution_scope(TurnPolicy(task=task)):
             delta = seed_product_search(task, 'find a touring tube', {'search_products': search}, {})
-        self.assertEqual(calls, [('find a touring tube', 5)])
+        self.assertEqual(calls, [('tube', 5)])
         self.assertEqual(len(delta), 2)
         self.assertEqual(delta[-1].type, 'tool')
 
@@ -138,11 +138,11 @@ class TaskExecutionTest(unittest.TestCase):
         with tool_execution_scope(TurnPolicy(task=ConversationTask(kind='refund_policy', agent='billing'))):
             result = guarded_tool_call(req, lambda r: refund.invoke(r.tool_call['args']))
         self.assertEqual(writes, [])
-        self.assertEqual(json.loads(result.content)['error_code'], 'TASK_TOOL_NOT_ALLOWED')
+        self.assertEqual(json.loads(result.content)['error_code'], 'CHAT_WRITE_NOT_ALLOWED')
 
 
 class TaskGraphTest(unittest.TestCase):
-    def test_empty_expert_reply_still_renders_retrieved_evidence(self):
+    def test_empty_expert_reply_does_not_turn_unselected_candidates_into_recommendations(self):
         import langgraph_supervisor_1 as project
         from chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
@@ -152,12 +152,12 @@ class TaskGraphTest(unittest.TestCase):
                 return {'messages': state['messages'] + [AIMessage(content='')]}
         with CaseFixture('guest') as fixture, patch.object(project, 'supervisor_router') as router, patch.object(project, 'sales_agent', EmptyExpert()):
             router.invoke.return_value = RouteDecision(next='sales', task_type='product_search', parameters=TaskParameters(keyword='touring tire tube', max_price=5))
-            result = invoke_turn(project.app, 'find a touring tube', fixture.thread_id)
+            result = invoke_turn(project.app, 'find a touring tube, budget 5', fixture.thread_id)
             tools = [m for m in result['messages'] if m.type == 'tool']
             self.assertTrue(tools)
             self.assertIn('search_products', [m.name for m in tools])
-            self.assertIn('4.9900', result['messages'][-1].content)
-            self.assertEqual(result['task_result']['status'], 'completed')
+            self.assertIn('选择清单未通过校验', result['messages'][-1].content)
+            self.assertEqual(result['task_result']['status'], 'empty')
 
     def test_real_graph_multiturn_task_switch_cancel_and_checkpoint(self):
         import langgraph_supervisor_1 as project

@@ -51,14 +51,13 @@ def reciprocal_rank_fusion(keyword_rows: list[dict], semantic_rows: list[dict], 
     return [{**products[k], "retrieval_sources": signals[k], "retrieval_score": round(scores[k], 8)} for k in ranked]
 
 
-def hybrid_retrieve(query: str, keyword_rows: list[dict], limit: int, *, min_price=None, max_price=None, product_category=None) -> dict:
-    from adventureworks_service import price_conditions
-    clauses, price_parameters = price_conditions(min_price, max_price, alias="p.")
-    from catalog_filters import category_conditions, category_matches
-    category_clauses,category_parameters=category_conditions(product_category,alias='p.')
-    clauses+=category_clauses
-    price_parameters+=category_parameters
-    keyword_rows=[p for p in keyword_rows if category_matches(p,product_category)]
+def hybrid_retrieve(query: str, keyword_rows: list[dict], limit: int, *, min_price=None, max_price=None, product_category=None, color=None, size=None,catalog_filter=None) -> dict:
+    from adventureworks_service import catalog_conditions
+    from catalog_query import effective,matches
+    clauses,price_parameters=catalog_conditions(catalog_filter,min_price=min_price,max_price=max_price,
+        product_category=product_category,color=color,size=size,alias='p.')
+    active_filter=effective(catalog_filter,min_price=min_price,max_price=max_price,product_category=product_category,color=color,size=size)
+    keyword_rows=[p for p in keyword_rows if matches(p,active_filter)]
     client = get_embedding_client()
     profile_id = client.settings.profile_id
     # 先检查完整建库标记，再调用 API。没有就绪知识库时不产生不必要的 API 请求。
@@ -82,7 +81,7 @@ def hybrid_retrieve(query: str, keyword_rows: list[dict], limit: int, *, min_pri
         raise EmbeddingError("SEMANTIC_MIN_SIMILARITY 必须在 -1 到 1 之间")
     with connect_database() as conn:
         semantic_rows = conn.execute(
-            f"""SELECT p.product_id,p.name,p.product_number,p.product_subcategory_id,p.color,p.size,p.weight,p.weight_unit,
+            f"""SELECT p.product_id,p.name,p.product_number,p.product_model_id,p.product_subcategory_id,p.color,p.size,p.weight,p.weight_unit,
                       p.list_price,p.description_en,p.description_zh,p.sell_end_at,p.discontinued_at,
                       k.content AS retrieved_content, 1-(k.embedding <=> %s::public.vector) AS similarity
                FROM knowledge_build_products k JOIN product_catalog p ON p.product_id=k.product_id
@@ -91,7 +90,7 @@ def hybrid_retrieve(query: str, keyword_rows: list[dict], limit: int, *, min_pri
                  AND 1-(k.embedding <=> %s::public.vector) >= %s
                ORDER BY k.embedding <=> %s::public.vector, p.product_id LIMIT %s""",
             [vector, active['active_build_id'], client.settings.dimensions, *price_parameters,
-             vector, threshold, vector, max(20, limit)],
+             vector, threshold, vector, max(40, limit)],
         ).fetchall()
     # 不返回已变化描述对应的旧向量；商品更改后需要重新运行入库脚本。
     fresh_rows = [r for r in semantic_rows if product_document(r) == r["retrieved_content"]]
@@ -99,6 +98,7 @@ def hybrid_retrieve(query: str, keyword_rows: list[dict], limit: int, *, min_pri
                 len(keyword_rows), len(fresh_rows))
     return {
         "products": reciprocal_rank_fusion(keyword_rows, fresh_rows, limit),
+        "retrieval_counts":{"keyword":len(keyword_rows),"semantic":len(fresh_rows)},
         "retrieval_mode": "hybrid", "semantic_available": True,
         "embedding_model": client.settings.public_configuration()["model"],
         "note": "关键词与向量融合召回；相似度不是适用性证明。价格等业务字段查询时从商品表读取。",

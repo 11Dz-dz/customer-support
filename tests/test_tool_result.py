@@ -110,7 +110,7 @@ class ToolContractTest(unittest.TestCase):
         def request_refund():raise TimeoutError('secret')
         self.assertFalse(request_refund()['retryable'])
 
-    def test_agent_cannot_repeat_a_failed_write_within_the_same_task(self):
+    def test_agent_cannot_submit_any_refund_even_with_refund_intent(self):
         from langchain_core.tools import tool
         from tool_execution import TurnPolicy,tool_execution_scope,guarded_tool_call
         @tool
@@ -127,8 +127,8 @@ class ToolContractTest(unittest.TestCase):
                     calls.append(req.tool_call['id'])
                     return ToolMessage(content=failure('TOOL_TIMEOUT').model_dump_json(),name='request_refund',tool_call_id=str(i))
                 result=guarded_tool_call(request,execute)
-        self.assertEqual(calls,['0'])
-        self.assertEqual(normalize_result(result.content).error_code,'WRITE_RETRY_NOT_ALLOWED')
+        self.assertEqual(calls,[])
+        self.assertEqual(normalize_result(result.content).error_code,'CHAT_WRITE_NOT_ALLOWED')
 
     def test_temporary_read_failure_can_be_retried_with_the_recorded_args(self):
         task=ConversationTask(kind='product_detail',agent='sales')

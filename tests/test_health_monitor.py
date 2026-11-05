@@ -29,7 +29,7 @@ class HealthMonitorTest(unittest.TestCase):
         return response
 
     def api(self, response=None, error=None, **env):
-        with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'secret-test-key', 'DEEPSEEK_MODEL': 'example', **env}), \
+        with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'secret-test-key', 'DEEPSEEK_MODEL': 'example', 'DEEPSEEK_PROVIDER':'deepseek','DEEPSEEK_BASE_URL':'https://api.deepseek.com', **env}), \
                 patch.object(health, 'load_project_env'), patch.object(health, 'build_opener') as opener:
             if error is not None:
                 opener.return_value.open.side_effect = error
@@ -127,7 +127,7 @@ class HealthMonitorTest(unittest.TestCase):
     def test_api_auth_rate_limit_and_redirect_failures_are_distinct(self):
         for code, expected in [(401,'AUTHENTICATION_REJECTED'),(403,'ACCESS_FORBIDDEN'),
                                (429,'RATE_LIMITED'),(302,'HTTP_ERROR')]:
-            result, _ = self.api(error=HTTPError(health.API_URL,code,'secret-test-key',{},None))
+            result, _ = self.api(error=HTTPError('https://api.deepseek.com/models',code,'secret-test-key',{},None))
             self.assertFalse(result['success'])
             self.assertEqual(result['error_code'], expected)
             self.assertEqual(result['http_status'], code)

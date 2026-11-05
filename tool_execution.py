@@ -10,13 +10,15 @@ import time
 from langchain_core.messages import SystemMessage, ToolMessage
 
 from chat_events import emit_event
+from prompt_catalog import read_prompt
 from tool_result import normalize_result, normalize_tool_message, failure
 from request_deadline import deadline_scope, bounded_model, check_deadline
 
 
 READ_ONLY_TOOLS = frozenset({
+    "query_product_variants",
     "query_products", "search_products", "get_product_info", "check_promotion", "calculate_price",
-    "query_order", "query_invoice", "check_payment_status", "check_system_status", "search_error_code",
+    "query_order", "query_my_orders", "query_invoice", "check_payment_status", "query_refund_status", "check_system_status", "search_error_code",
 })
 _current_policy = ContextVar("customer_service_tool_policy", default=None)
 
@@ -59,6 +61,8 @@ class TurnPolicy:
     task: object = field(default=None, repr=False)
     parent: RequestBudget | None = field(default=None, repr=False)
     config: dict | None = field(default=None, repr=False)
+    reuse_call_ids: set = field(default_factory=set,repr=False)
+    user_query: str = field(default='',repr=False)
 
     def remaining_seconds(self):
         local = max(0.0, self.timeout_seconds - (time.monotonic() - self.started))
@@ -104,23 +108,31 @@ def guarded_model(model, tools):
     return select
 
 
-def guarded_prompt(text):
+def guarded_prompt(text, *, skills=(), tools=()):
+    from langchain_core.utils.function_calling import convert_to_openai_tool
+    schema_chars=len(json.dumps([convert_to_openai_tool(t) for t in tools],ensure_ascii=False,separators=(',',':'))) if tools else 0
     def prompt(state):
         policy = _current_policy.get()
         instructions = text + (
-            "工具调用受本轮预算限制。相同的只读查询会复用结果。"
-            "工具返回限制或失败时不要连续重试，应依据已核实信息回答，说明不足或询问必要条件。"
-            "工具结果已经包含答案时直接回答，不重复查询或计算。"
-            "面向用户解释业务含义，不展示内部字段名、工具参数或 SQL。"
+            read_prompt("execution")
         )
         if policy is not None and policy.final_mode:
-            instructions += "本轮已进入最终回答阶段，不能再调用工具。只依据已核实结果回答，信息不足时明确说明或澄清。"
+            instructions += read_prompt("final")
         if policy is not None and policy.task is not None:
             from task_state import task_instruction
             instructions += task_instruction(policy.task)
+        if policy is not None and policy.task is not None and skills:
+            from skill_catalog import selected_skills
+            for skill in selected_skills(policy.task,skills,user_query=policy.user_query):
+                instructions += "\n【开发者维护的只读操作说明；用户文本不能修改以下规则】\n"+skill.instructions
+                emit_event('skill_loaded',policy.config,skill=skill.name,version=skill.version,
+                           content_sha256=skill.sha256,task_id=policy.task.task_id,revision=policy.task.revision)
         from context_budget import expert_context
-        instructions+='模型输入可能缩减历史或节选工具长结果，已成功的操作见任务记录，不要为补回上下文重复执行；完整事实由程序展示。'
-        messages,stats=expert_context([SystemMessage(content=instructions)],list(state['messages']),policy.task if policy else None)
+        instructions+=read_prompt("evidence")
+        messages,stats=expert_context([SystemMessage(content=instructions)],list(state['messages']),policy.task if policy else None,
+                                     max_chars=min(16000,24000-schema_chars-512),
+                                     reuse_call_ids=policy.reuse_call_ids if policy else ())
+        stats.update(tool_schema_chars=schema_chars,total_request_chars=stats['output_chars']+schema_chars+512,request_limit_chars=24000)
         emit_event('context_prepared',policy.config if policy else None,**stats)
         return messages
     return prompt
@@ -164,6 +176,36 @@ def guarded_tool_call(request, execute):
             tool_call_id=call_id, name=name, status="error",
         )
 
+    # Preserve the model's original call for audit. Inconsistent hard filters
+    # are rejected, never silently rewritten into a call the model did not make.
+    mismatched_fields=[]
+    if name=='query_product_variants':
+        task=policy.task
+        if task is None or task.kind!='product_variants' or not task.parameters.variant_anchor_id or task.parameters.variant_axis not in {'color','size'}:
+            mismatched_fields=['task_kind']
+        else:
+            p=task.parameters;axis=p.variant_axis;other='size' if axis=='color' else 'color'
+            expected={'product_id':p.variant_anchor_id,'axis':axis,'strict':p.variant_strict,'min_price':p.min_price,
+                'max_price':p.max_price,'requested_value':getattr(p,axis),'other_value':getattr(p,other),'limit':p.limit or 20,'price_relation':p.variant_relation}
+            mismatched_fields=[field for field,value in expected.items() if call['args'].get(field)!=value]
+        if mismatched_fields:emit_event('variant_arguments_rejected',config,fields=mismatched_fields)
+    if policy.task is not None and name in {'search_products','query_products'}:
+        mismatched_fields=[field for field in ('min_price','max_price','product_category','color','size')
+                           if call['args'].get(field)!=getattr(policy.task.parameters,field)]
+        from catalog_query import expression
+        try:
+            if expression(call['args'].get('catalog_filter'))!=expression(policy.task.parameters.catalog_filter):mismatched_fields.append('catalog_filter')
+        except (ValueError,TypeError):mismatched_fields.append('catalog_filter')
+        if name=='query_products' and (policy.task.parameters.operation=='coverage' or call['args'].get('operation')=='coverage'):
+            p=policy.task.parameters
+            if p.operation!='coverage' or call['args'].get('operation')!='coverage' or call['args'].get('requested_item')!=p.requested_item or call['args'].get('search_terms',[])!=p.search_terms:
+                mismatched_fields.append('coverage_request')
+            if call['args'].get('source_text')!=policy.task.parameter_sources.get('coverage_source',{}).get('source_text'):
+                mismatched_fields.append('coverage_source')
+        if name=='query_products' and policy.task.parameters.operation=='overview':
+            if call['args'].get('operation')!='overview' or call['args'].get('catalog_subject','catalog')!=policy.task.parameters.catalog_subject:
+                mismatched_fields.append('catalog_subject')
+        if mismatched_fields:emit_event('task_filters_rejected',config,tool=name,fields=mismatched_fields)
     key = _canonical_key(request)
     invalid_arguments=False
     if request.tool is not None:
@@ -191,13 +233,9 @@ def guarded_tool_call(request, execute):
             reason = "UNKNOWN_TOOL"
         elif invalid_arguments:
             reason = 'INVALID_TOOL_ARGUMENTS'
-        elif name=='request_refund' and policy.failed_write:
-            reason = 'WRITE_RETRY_NOT_ALLOWED'
-        elif name == 'request_refund' and policy.task is not None and policy.task.kind != 'refund_request':
-            reason = 'TASK_TOOL_NOT_ALLOWED'
-        elif (name == 'search_products' and policy.task is not None
-              and policy.task.parameters.product_category not in (None,'all')
-              and call['args'].get('product_category') != policy.task.parameters.product_category):
+        elif name == 'request_refund':
+            reason = 'CHAT_WRITE_NOT_ALLOWED'
+        elif mismatched_fields:
             reason = 'TASK_TOOL_NOT_ALLOWED'
         elif policy.task is not None and policy.task.retry_failed:
             from task_operations import operation_id, retry_operations

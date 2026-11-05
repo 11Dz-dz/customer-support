@@ -36,7 +36,7 @@ def manifest(cases, source):
             "dataset_sha256": digest(ROOT / "cases.jsonl"), "gold_sha256": digest(ROOT / "retrieval_gold.json"),
             "selected_ids": [c["id"] for c in cases], "code_sha256": code_hash, "code_files": hashes,
             "source_fingerprint": source, "dependencies": versions,
-            "model": {"name": os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
+            "model": {**__import__("deepseek_model").provider_settings(),"name": __import__("deepseek_model").provider_settings()["model"],
                       "router_temperature": 0.0, "specialist_temperature": 0.2},
             "embedding": EmbeddingSettings.from_env().public_configuration(),
             "measurement_notes": ["同一进程串行评测；首次检索可能包含模型冷启动。",

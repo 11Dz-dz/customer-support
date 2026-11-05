@@ -1,0 +1,8 @@
+# Optional evaluation SDKs. Install without upgrading the application's frozen dependencies:
+# python -m pip install --no-deps -r requirements-eval.txt
+# requirements.txt must already be installed. These imports are used by OpenEvals.
+agentevals==0.0.9
+openevals==0.2.2
+langchain==1.4.6
+langchain-openai==1.7.2
+rich==15.0.0

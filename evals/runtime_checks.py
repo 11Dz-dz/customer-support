@@ -23,6 +23,7 @@ def execution_checks(trace, expect=None):
             if t['kind']=='product_search' and t['status'] not in {'awaiting_input','cancelled','awaiting_dependency'}:
                 add('recommendation_completed',t['status'] in {'completed','empty'} and not t.get('failure_code'),t)
                 specialist=[m for m in models if m.get('role')==t['agent']]
-                add('recommendation_model_success',bool(specialist) and all(m.get('success') is True for m in specialist),
+                verified_empty=(t['status']=='empty' and any(e.get('event')=='catalog_scope_checked' and e.get('task_id')==t['task_id'] and e.get('matched_count')==0 for e in trace.get('events',[])))
+                add('recommendation_model_success',(bool(specialist) or verified_empty) and all(m.get('success') is True for m in specialist),
                     [{'role':m.get('role'),'success':m.get('success')} for m in specialist])
     return checks

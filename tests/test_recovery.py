@@ -299,7 +299,7 @@ print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
             self.assertTrue(any(isinstance(m, ToolMessage) and m.tool_call_id=='completed-before-timeout'
                                 for m in result['messages']))
 
-    def test_uncertain_refund_creates_review_ticket_without_second_submission(self):
+    def test_refund_intent_guides_to_order_page_without_write_or_handoff(self):
         import langgraph_supervisor_1 as module
         from chat_runtime import invoke_turn, final_reply
         from evals.fixtures import CaseFixture
@@ -316,12 +316,13 @@ print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
                  patch.object(module.order_service, 'request_refund', side_effect=TimeoutError()) as write:
                 write.__name__ = 'request_refund'
                 result = invoke_turn(module.app, '申请退款', fixture.thread_id)
-            self.assertEqual(write.call_count, 1)
-            self.assertIn('待人工处理', final_reply(result['messages']).content)
+            self.assertEqual(write.call_count, 0)
+            self.assertIn('我的订单', final_reply(result['messages']).content)
+            self.assertIn('聊天不会代你提交', final_reply(result['messages']).content)
             with connect_database() as conn:
                 rows = conn.execute('SELECT reason FROM customer_service.human_handoffs WHERE thread_id=%s',
                                     (fixture.thread_id,)).fetchall()
-            self.assertEqual([r['reason'] for r in rows], ['uncertain_write'])
+            self.assertEqual([r['reason'] for r in rows], [])
 
     def test_expired_plan_does_not_start_any_business_operation(self):
         import langgraph_supervisor_1 as module

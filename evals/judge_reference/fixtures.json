@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "source": "authored_synthetic_fixture_not_production_database",
+  "customer_id": 70001,
+  "orders": [
+    {"order_id": 12345, "order_number": "SO12345", "customer_id": 70001, "subtotal": "180.00", "tax_amount": "15.00", "freight": "5.00", "total_due": "200.00", "status": "已发货", "purchase_at": "2026-01-01", "due_at": "2026-01-08", "shipped_at": "2026-01-02", "delivered_at": null, "currency": null},
+    {"order_id": 12346, "order_number": "SO12346", "customer_id": 70001, "subtotal": "300.00", "tax_amount": "30.00", "freight": "15.67", "total_due": "345.67", "status": "已发货", "delivered_at": null, "currency": null},
+    {"order_id": 54321, "order_number": "SO54321", "customer_id": 70002, "total_due": "900.00"}
+  ],
+  "refunds": [
+    {"refund_id": "RF-TEST-1", "order_id": 12345, "status": "pending"},
+    {"refund_id": "RF-TEST-2", "order_id": 12346, "status": "approved"}
+  ],
+  "products": [
+    {"product_id": "DEMO-P1", "name": "旅行车把", "list_price": "90.00", "description": "用于长途骑行，轻量铝制，支持舒适握持。", "self_sealing": false},
+    {"product_id": "DEMO-P2", "name": "普通备用前轮", "list_price": "80.00", "description": "公路车备用前轮，未提供长途骑行适用性说明。", "self_sealing": false},
+    {"product_id": "DEMO-P3", "name": "自密封山地车内胎", "list_price": "5.00", "description": "山地车用自密封内胎。", "self_sealing": true},
+    {"product_id": "DEMO-P4", "name": "普通公路车内胎", "list_price": "4.00", "description": "普通公路车内胎，不具备自密封功能。", "self_sealing": false}
+  ],
+  "limits": {"currency_known": false, "payment_channel_connected": false, "real_time_inventory_known": false, "refund_policy_available": false, "refund_submission": "用户在网页我的订单页面确认提交；聊天只读查询或指引", "approved_means_paid": false, "real_human_connected": false},
+  "notes": "全部为公开可提交的虚构评测事实。商品不代表真实AdventureWorks条目；不可用本文件推断真实用户订单或商品。"
+}
