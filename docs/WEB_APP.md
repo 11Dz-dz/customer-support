@@ -45,7 +45,7 @@ cd /root/rivermind-data/Agent/example/langgraph_olist_example
 在自己电脑终端建立隧道（命令中不包含密码）：
 
 ```bash
-ssh -N -L 127.0.0.1:8000:127.0.0.1:8000 -p 30153 root@sh02-ssh.gpuhome.cc
+ssh -N -L 127.0.0.1:8000:127.0.0.1:8000 -p SSH_PORT USER@SSH_HOST
 ```
 
 保持终端开启，浏览器访问`http://127.0.0.1:8000`，不要换成localhost：服务校验精确站点来源。隧道断开后重建即可，页面重连不会重新提交业务。

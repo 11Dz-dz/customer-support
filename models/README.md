@@ -17,4 +17,4 @@ models/multilingual-e5-small/
 
 ## 索引构建隔离（2026-10-23）
 
-每次增量更新写入独立build_id，完整校验后原子切换active_build_id；中途失败不覆盖活动向量。已有部署先运行`python build_product_knowledge.py --migrate-only`，不重算向量。过程、测试与限制见[构建隔离说明](docs/KNOWLEDGE_BUILDS.md)。
+每次增量更新写入独立build_id，完整校验后原子切换active_build_id；中途失败不覆盖活动向量。已有部署先运行`python build_product_knowledge.py --migrate-only`，不重算向量。过程、测试与限制见[构建隔离说明](../docs/KNOWLEDGE_BUILDS.md)。

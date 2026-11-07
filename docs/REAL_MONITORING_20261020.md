@@ -24,7 +24,7 @@
 
 新增不经过LLM的独立命令，便于直接读取健康结果；API探测仍需现有Key。没有借此启动后台服务或执行自动修复。
 
-下面说明具体实现、使用方式和实测。想先理解程序究竟检查了什么，请看 [通俗版总总结](IMPROVEMENTS_READABLE_20261021.md) 第7节。
+下面说明具体实现、使用方式和实测。想先理解程序究竟检查了什么，请看 [通俗版总总结](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/IMPROVEMENTS_READABLE_20261021.md) 第7节。
 
 ## 当前实现
 
@@ -87,6 +87,6 @@ cd /root/rivermind-data/Agent/example/langgraph_olist_example
 
 ## 验证结果
 
-资源口径、只读探针、HTTP错误、密钥隔离、历史快照隔离和正文一致性由tests/test_health_monitor.py等现行测试覆盖；请求期限见tests/test_recovery.py。最新版本的200项自动测试及112个模拟场景结果统一见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节。
+资源口径、只读探针、HTTP错误、密钥隔离、历史快照隔离和正文一致性由tests/test_health_monitor.py等现行测试覆盖；请求期限见tests/test_recovery.py。最新版本的200项自动测试及112个模拟场景结果统一见[当前版本总览](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/CURRENT_PROJECT_STATUS.md)第7节。
 
 本文不展示旧检测数值作为当前服务器状态。需要了解现在的CPU、内存、数据库或API连通性，应运行上面的独立命令重新检测。

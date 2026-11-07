@@ -38,11 +38,9 @@
 | `deepseek_model.py` | 补上传输时遗漏的原始推理字段。 |
 | `task_scheduler.py` | 标记只保留了部分调用的历史，防止误当完整模型响应重放。 |
 | `langgraph_supervisor_1.py` | 使用兼容适配器；异常后的收集事件不再错误标为执行成功。 |
-| `evals/runtime_checks.py` | 区分完整成功、等待补充和安全保留的部分结果。 |
-| `evals/runner.py`、`evals/validation_runner.py`、`evals/multitask_runner.py` | 在基础、验证、复合任务及复用这些入口的评测中检查执行情况。 |
+| `evals/runtime_checks.py` | 检查执行结果、完成状态和模型故障。 |
 | `tests/test_deepseek_protocol.py` | 程序资料、旧记录、隔离、推理回传和流式/非流式实际HTTP请求格式等12项自动测试。 |
 | `evals/check_deepseek_protocol.py` | 使用真实DeepSeek，使用自动工具选择，完成两次“模型调用→实际查商品→模型继续回答”；报告不保存推理正文。 |
-| `evals/routing_probe_v2/` | 新版本的24场景47轮回归集、冻结清单和运行入口。 |
 
 两项已有测试适配了真实协议要求：`test_reliability.py` 的原生消息保留测试、`test_session_identity.py` 的假模型工具响应现在带测试用的模拟提供方推理字段；实际业务代码不会生成这个字段。
 
@@ -76,11 +74,11 @@
 真实模型回归需要额度，顺序执行，避免临时测试订单影响数据指纹：
 
 ```bash
-/opt/conda/envs/agent/bin/python -B evals/routing_probe_v2/run_routing_probe.py --root . --live
+python run_current_evaluation.py --live
 /opt/conda/envs/agent/bin/python -B evals/check_deepseek_protocol.py --live
 ```
 
-实测结果及报告路径见文末验证记录。此次没有重跑此前全部112个历史模拟场景，没有做多用户并发测试；这些结果来自模拟问题和样例数据，不是生产准确率。
+实测结果及报告路径见文末验证记录。旧版 24 场景及运行入口可在[历史提交](https://github.com/11Dz-dz/customer-support/tree/767d280215a6344b00852416b9219a2ac121b958/evals/routing_probe_v2)查阅。此次没有重跑此前全部112个历史模拟场景，没有做多用户并发测试；这些结果来自模拟问题和样例数据，不是生产准确率。
 
 ## 6. 后续边界
 
@@ -116,4 +114,4 @@
 
 正式目录部署后的检查结果另存`logs/deepseek_protocol_verification_20261024.json`。这些报告都属于开发回归，未将失败结果重新命名为通过，也不覆盖首次测试集或首次结果。
 
-GitHub发布版本提供[验证元数据](validation/deepseek_protocol_20261024.json)；文中原始报告路径用于原服务器定位，原始问答和日志不随源码公开。
+GitHub发布版本提供[验证元数据](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/validation/deepseek_protocol_20261024.json)；文中原始报告路径用于原服务器定位，原始问答和日志不随源码公开。

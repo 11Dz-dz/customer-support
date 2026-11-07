@@ -16,7 +16,7 @@
 
 当前权限测试已包含在200项自动测试及现行场景回归中；完整数量与报告见当前版本总览。此处的身份映射属于可信CLI演示能力，不等于已经完成真实登录与会话所有者认证。
 
-想先理解这项改进在做什么，请看 [通俗版总总结](IMPROVEMENTS_READABLE_20261021.md) 第4节；本文件保留具体实现与验证记录。
+想先理解这项改进在做什么，请看 [通俗版总总结](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/IMPROVEMENTS_READABLE_20261021.md) 第4节；本文件保留具体实现与验证记录。
 
 ## 1. 当前实现
 
@@ -133,7 +133,7 @@ cd /root/rivermind-data/Agent/example/langgraph_olist_example
 
 评估结果保存在 `/root/rivermind-data/Agent/example/langgraph_olist_example/logs/identity_evaluation_latest.json`；验证本人订单读取、伪造身份拒绝、不同用户独立读取、游客拒绝及越权退款没有新增申请。只对不属于当前测试客户的样例订单测试退款拒绝，不执行合法样例订单退款。
 
-最新版本验证统一见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节；旧报告不作为当前成绩。
+最新版本验证统一见[当前版本总览](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/CURRENT_PROJECT_STATUS.md)第7节；旧报告不作为当前成绩。
 
 ## 6. 涉及文件
 

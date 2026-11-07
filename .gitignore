@@ -72,5 +72,7 @@ Thumbs.db
 /evals/broad_evaluation_20261103/
 /evals/reports_reliability_*/
 /evals/reliability_20261103/
+/evals/judge_reference/REVIEW.md
+
 # Dated execution archives contain raw conversations and local evidence.
 /evals/*_20*/

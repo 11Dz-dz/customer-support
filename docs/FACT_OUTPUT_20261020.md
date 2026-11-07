@@ -28,7 +28,7 @@ M06.2将4.99的3条同价套用到最低价2.29。分别统计完整过滤范围
 
 M01查明细时遗漏状态，补为有证据的订单摘要固定项；M04选购小计被分给账单，补充购买前报价归销售、已有订单金额归账单的职责边界。修改后重新回归，保留失败版本的原始报告。
 
-下面记录具体实现、验证和代价。想先用具体例子理解，请看 [通俗版总总结](IMPROVEMENTS_READABLE_20261021.md) 第5、6节。
+下面记录具体实现、验证和代价。想先用具体例子理解，请看 [通俗版总总结](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/IMPROVEMENTS_READABLE_20261021.md) 第5、6节。
 
 ## 业务事实由谁生成
 
@@ -121,7 +121,7 @@ calculate_price支持单商品与组合模式。组合参数示例：
 
 ## 验证结果
 
-最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
+最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
 
 重点检查由tests/test_answer_contract.py、tests/test_task_pipeline.py、tests/test_multitask.py、tests/test_reliability.py与tests/test_recovery.py覆盖。金额、日期、退款、并列、错误草稿隔离、结果汇总和持久化均需结合实际证据判断，不能只检查最终文字。
 
