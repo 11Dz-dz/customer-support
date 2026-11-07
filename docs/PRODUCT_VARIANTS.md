@@ -1,6 +1,6 @@
 # 同款颜色和尺寸查询
 
-更新：2026-11-03。代码入口为 `product_variants.py`，任务类型为 `product_variants`。
+更新：2026-11-03。代码入口为 `backend/catalog/product_variants.py`，任务类型为 `product_variants`。
 
 ## 遇到的问题
 
@@ -29,22 +29,14 @@
 
 | 文件 | 职责 |
 |---|---|
-| `product_variants.py` | 核实引用、绑定颜色/尺寸条件、区分展示和严格筛选、渲染结果 |
-| `adventureworks_service.py` | 参数化SQL按同型号及另一规格查询，计算价格资格和差额 |
-| `business_tools.py` | 暴露只读工具 `query_product_variants` |
-| `task_state.py`、`task_scheduler.py` | 保存新任务、参考商品和等待补充状态，不覆盖原推荐 |
-| `task_execution.py`、`tool_execution.py` | 按确认后的参数直接查询，拒绝工具擅自放宽预算或更换商品 |
-| `answer_contract.py`、`langgraph_supervisor_1.py` | 收集展示商品，走事实展示并支持后续报价 |
+| `backend/catalog/product_variants.py` | 核实引用、绑定颜色/尺寸条件、区分展示和严格筛选、渲染结果 |
+| `backend/orders/adventureworks_service.py` | 参数化SQL按同型号及另一规格查询，计算价格资格和差额 |
+| `backend/agent/business_tools.py` | 暴露只读工具 `query_product_variants` |
+| `backend/tasks/task_state.py`、`backend/tasks/task_scheduler.py` | 保存新任务、参考商品和等待补充状态，不覆盖原推荐 |
+| `backend/tasks/task_execution.py`、`backend/agent/tool_execution.py` | 按确认后的参数直接查询，拒绝工具擅自放宽预算或更换商品 |
+| `backend/agent/answer_contract.py`、`backend/agent/langgraph_supervisor_1.py` | 收集展示商品，走事实展示并支持后续报价 |
 | `prompts/router.md`、专家配置 | 告诉规划器何时使用新任务，将工具加入销售白名单 |
 
 目前业务工具共13个，销售白名单6个；本次没有新增Skill或前端依赖。
 
-## 实际验证和边界
-
-- 完整自动回归512项通过，其中新增14项覆盖真实SQL、状态保留、报价和工具参数防篡改。
-- 真实模型专项11个场景、13轮：普通颜色、预算不变、旧失败记录恢复、提高预算、尺寸、明确SKU、连续修改、报价、无关问题拒答、引用歧义及订单混合任务，均通过功能及SQL核对。
-- 同版本另外执行既有业务、范围拒答及相对价格回归。价格R06原报告失败是旧快照缺少新增默认字段，按当前状态模型补齐后任务完全一致；回答要求用户选择商品、没有执行工具。原失败报告保留，单独保存复核，没有重跑模型挑选通过答案。评分器已改用同一状态模型比较旧快照。
-- 持久证据放在服务器 `evals/product_variants_20261103/`，部署和验证记录在 `logs/variants_deployment_20261103.json`、`logs/variants_verification_20261103.json`。
-- LangSmith月度额度已满，本轮测试进程关闭云端上传，保留本地事件；生产配置不改动。
-
-这些是功能回归，不是推荐语义质量的独立验收，也没有重新跑全部80题、压力测试或浏览器人工验收。当前资料仍是AdventureWorks历史样例，不能证明实时价格、库存、在售状态或币种。缺少型号关联时明确表示无法核实；最多展示20款并说明截断。复杂否定颜色条件等表达没有穷尽测试。
+同款查询与预算筛选的回归见 `tests/test_product_variants.py`。

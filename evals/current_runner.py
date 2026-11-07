@@ -46,7 +46,7 @@ def rejudge_report(path,output_root,refresh_contracts=False):
     from evals.runtime_checks import execution_checks
     from evals.current_contracts import score_current,check
     from evals.dataset import load_gold
-    from conversation_persistence import close_persistence
+    from backend.conversation.conversation_persistence import close_persistence
     cases={c['id']:c for c in current_cases()}
     source=json.loads(path.read_text(encoding='utf-8'))
     recorded=json.loads(path.with_name('dataset.json').read_text(encoding='utf-8'))
@@ -193,7 +193,7 @@ def run_case(app,case,repetition,batch_id,gold,judge):
     from evals.grading import score_turn
     from evals.runner import run_turn
     from evals.runtime_checks import execution_checks
-    from langsmith_tracing import request_metadata_scope
+    from backend.observability.langsmith_tracing import request_metadata_scope
     record={'id':case['id'],'category':case['category'],'split':case['split'],'repeat':repetition,
             'turns':[],'auto_pass':False,'critical_failure':False,'unavailable':False,'error_type':None}
     history=[];context=[]
@@ -319,10 +319,10 @@ def main(argv=None):
     from evals.reporting import manifest,write_json
     from evals.fixtures import source_fingerprint
     from evals.dataset import load_gold
-    from chat_events import configure_event_log
-    from conversation_persistence import close_persistence
-    from langsmith_tracing import flush_traces
-    from langgraph_supervisor_1 import app
+    from backend.observability.chat_events import configure_event_log
+    from backend.conversation.conversation_persistence import close_persistence
+    from backend.observability.langsmith_tracing import flush_traces
+    from backend.agent.langgraph_supervisor_1 import app
     batch=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid4().hex[:8]
     directory=args.output_root.resolve()/batch;directory.mkdir(parents=True,exist_ok=False);directory.chmod(0o700)
     configure_event_log(directory/'events.jsonl');gold=load_gold()

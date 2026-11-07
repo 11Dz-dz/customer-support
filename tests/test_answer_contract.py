@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from adventureworks_service import AdventureWorksService
-from answer_contract import build_business_answer, verified_chunks
+from backend.orders.adventureworks_service import AdventureWorksService
+from backend.agent.answer_contract import build_business_answer, verified_chunks
 
 
 def human(text):
@@ -148,7 +148,7 @@ class FactServiceIntegrationTest(unittest.TestCase):
         self.assertIsNone(self.service.query_products(max_price=0)['extreme_tie_count'])
 
     def test_zero_catalog_price_cannot_be_quoted_as_free(self):
-        from postgres_config import connect_database
+        from backend.postgres_config import connect_database
         with connect_database() as conn:
             pid=conn.execute('SELECT product_id FROM product_catalog WHERE list_price=0 ORDER BY product_id LIMIT 1').fetchone()['product_id']
         self.assertFalse(self.service.calculate_price(str(pid),1)['success'])
@@ -158,8 +158,8 @@ class FactServiceIntegrationTest(unittest.TestCase):
         from langchain_core.language_models.fake_chat_models import FakeListChatModel
         from langchain_core.messages import AIMessage, ToolMessage
         from evals.fixtures import CaseFixture
-        from chat_runtime import stream_turn, invoke_turn
-        import langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import stream_turn, invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
 
         class FakeAgent:
             def invoke(self, state, config):

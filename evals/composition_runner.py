@@ -59,10 +59,10 @@ def review_existing(path):
 
 
 def comparison(project, *, compare=True):
-    from chat_runtime import stream_turn
+    from backend.conversation.chat_runtime import stream_turn
     from evals.fixtures import CaseFixture
     from evals.observer import EvaluationObserver
-    from postgres_config import connect_database
+    from backend.postgres_config import connect_database
     from decimal import Decimal
 
     class SkillObserver(EvaluationObserver):
@@ -135,11 +135,11 @@ def main():
         'No semantic suitability judge; SQL checks only prove the named facts and filters',
         'Not a load test or full 80-case acceptance', 'No rerun to select a passing answer'],
         'code_files': {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in [*root.glob('*.py'), *root.glob('prompts/*.md'), *root.glob('config/*.json'),
+            for path in [*root.glob('backend/**/*.py'), *root.glob('prompts/*.md'), *root.glob('config/*.json'),
                 *root.glob('skills/*/SKILL.md')]}}
     print('REPORT_DIR', directory, flush=True)
     for label, command in [
-        ('existing_six', ['run_current_evaluation.py', '--live', '--ids', 'G01,C01,O02,P01,N01,X01', '--no-judge']),
+        ('existing_six', ['-m', 'evals.run_current_evaluation', '--live', '--ids', 'G01,C01,O02,P01,N01,X01', '--no-judge']),
         ('budget_two_turn', ['-m', 'evals.constraint_runner', '--live', '--phase', 'e2e', '--ids', 'E03']),
     ]:
         with (directory / (label + '.log')).open('w') as log:
@@ -151,11 +151,11 @@ def main():
             'returncode': result.returncode,'report_created':report_created}))
         write(directory / 'report.json', report)
         print(label, result.returncode, flush=True)
-    import langgraph_supervisor_1 as project
-    from chat_events import configure_event_log
+    import backend.agent.langgraph_supervisor_1 as project
+    from backend.observability.chat_events import configure_event_log
     from evals.fixtures import source_fingerprint
-    from deepseek_model import provider_settings
-    from langsmith_tracing import flush_traces
+    from backend.agent.deepseek_model import provider_settings
+    from backend.observability.langsmith_tracing import flush_traces
     report['model'] = provider_settings()
     configure_event_log(directory / 'comparison-events.jsonl')
     report['source_before_comparison'] = source_fingerprint()

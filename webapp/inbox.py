@@ -1,7 +1,7 @@
 """One durable input inbox, owned by exactly one conversation worker."""
 from uuid import uuid4
 
-from turn_inbox import TurnStopped
+from backend.conversation.turn_inbox import TurnStopped
 
 
 class WebInbox:

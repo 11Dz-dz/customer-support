@@ -5,16 +5,16 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage,HumanMessage,ToolMessage,SystemMessage
-from answer_contract import AnswerPlan,render_business_result
-from task_result import TaskResult,ToolEvidence
-from task_state import (ConversationTask,TaskParameters,TaskPlan,PlannedTask,
+from backend.agent.answer_contract import AnswerPlan,render_business_result
+from backend.tasks.task_result import TaskResult,ToolEvidence
+from backend.tasks.task_state import (ConversationTask,TaskParameters,TaskPlan,PlannedTask,
                         authoritative_product_count,turn_user_inputs)
-from task_scheduler import prepare_plan
+from backend.tasks.task_scheduler import prepare_plan
 
 
 class RecommendationOutcomeTests(unittest.TestCase):
     def select(self,rows,draft='{"kind":"data","product_ids":[]}'):
-        from langgraph_supervisor_1 import limit_product_plan
+        from backend.agent.langgraph_supervisor_1 import limit_product_plan
         task=ConversationTask(kind='product_search',parameters=TaskParameters(max_price=500,product_category='bicycles',limit=1))
         result=TaskResult(current=rows,product_category='bicycles')
         plan,ids=limit_product_plan(task,result,draft)
@@ -66,7 +66,7 @@ class RecommendationOutcomeTests(unittest.TestCase):
         text,_=render_business_result(result,plan,'sales');self.assertIn('选择清单未通过校验',text)
 
     def test_verified_empty_seed_skips_unnecessary_specialist_and_tools(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         task=ConversationTask(kind='product_search',parameters=TaskParameters(limit=1,max_price=500,product_category='bicycles'))
         call='seed'
         seed=[AIMessage(content='',tool_calls=[{'name':'search_products','args':{},'id':call}]),
@@ -82,7 +82,7 @@ class RecommendationOutcomeTests(unittest.TestCase):
         self.assertEqual(json.loads(value['pending_messages'][-1].content)['recommendation_status'],'no_candidates')
 
     def test_no_seed_shortcut_for_failed_retrieval_nonempty_scope_or_failed_verification(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         task=ConversationTask(kind='product_search')
         empty=[ToolMessage(name='search_products',tool_call_id='c',content=json.dumps({'success':True,'products':[]}))]
         error=[ToolMessage(name='search_products',tool_call_id='c',content=json.dumps({'success':False,'error_code':'DATABASE_TIMEOUT'}))]
@@ -99,7 +99,7 @@ class OriginalCountTests(unittest.TestCase):
             query=f'推荐{count}款自行车',parameters=TaskParameters(limit=count,product_category='bicycles'))])
 
     def test_original_user_count_overrides_both_model_fields_and_rewritten_query(self):
-        from langgraph_supervisor_1 import validate_planner_counts
+        from backend.agent.langgraph_supervisor_1 import validate_planner_counts
         original=['推荐一款自行车。','预算500以内。'];plan=self.plan()
         validate_planner_counts(plan,original)
         tasks,_,_=prepare_plan(plan,{},original[-1],original_inputs=original)
@@ -132,8 +132,8 @@ class OriginalCountTests(unittest.TestCase):
 
 class CatalogScopeDatabaseTests(unittest.TestCase):
     def test_exact_scope_has_no_retrieval_cutoff_or_keyword(self):
-        from adventureworks_service import AdventureWorksService
-        from postgres_config import connect_database
+        from backend.orders.adventureworks_service import AdventureWorksService
+        from backend.postgres_config import connect_database
         with connect_database() as c:
             expected=c.execute('SELECT count(*) AS n FROM product_catalog WHERE product_subcategory_id IN (1,2,3) AND list_price>0 AND list_price<=500').fetchone()['n']
         actual=AdventureWorksService().catalog_scope_summary(max_price=500,product_category='bicycles')
@@ -155,16 +155,16 @@ class InflightEvidenceTests(unittest.TestCase):
         return task,state
 
     def test_only_this_task_and_current_segment_are_reusable(self):
-        from turn_inbox import inflight_evidence_ids
+        from backend.conversation.turn_inbox import inflight_evidence_ids
         task,state=self.setup_evidence()
         self.assertEqual(inflight_evidence_ids(state,task),{'same-segment'})
         state['inflight_user_ids']=['not-present'];self.assertEqual(inflight_evidence_ids(state,task),set())
 
     def test_reused_candidate_is_visible_and_can_be_selected_without_auto_filling(self):
-        from context_budget import expert_context
-        from turn_inbox import inflight_evidence_ids
-        from task_result import collect_task_result
-        from langgraph_supervisor_1 import limit_product_plan
+        from backend.agent.context_budget import expert_context
+        from backend.conversation.turn_inbox import inflight_evidence_ids
+        from backend.tasks.task_result import collect_task_result
+        from backend.agent.langgraph_supervisor_1 import limit_product_plan
         task,state=self.setup_evidence();ids=inflight_evidence_ids(state,task)
         _,stats=expert_context([SystemMessage(content='select')],state['messages'],task,reuse_call_ids=ids)
         self.assertEqual(stats['visible_candidate_ids'],[1])
@@ -175,8 +175,8 @@ class InflightEvidenceTests(unittest.TestCase):
         _,selected=limit_product_plan(task,result,'{"product_ids":[]}');self.assertEqual(selected,[])
 
     def test_updated_budget_still_filters_same_segment_evidence(self):
-        from context_budget import expert_context
-        from turn_inbox import inflight_evidence_ids
+        from backend.agent.context_budget import expert_context
+        from backend.conversation.turn_inbox import inflight_evidence_ids
         task,state=self.setup_evidence();task.parameters.max_price=500
         _,stats=expert_context([SystemMessage(content='select')],state['messages'],task,
                                reuse_call_ids=inflight_evidence_ids(state,task))

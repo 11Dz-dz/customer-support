@@ -8,8 +8,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from psycopg import sql
 
-from postgres_config import connect_database
-from refund_service import RefundService,RefundError,ensure_refund_schema
+from backend.postgres_config import connect_database
+from backend.orders.refund_service import RefundService,RefundError,ensure_refund_schema
 from webapp.store import WebStore
 from webapp.api import create_app
 
@@ -178,8 +178,8 @@ class RefundWebTests(unittest.TestCase):
         with self.connect() as c:c.execute("INSERT INTO refund_requests VALUES('OLD',43659,'历史原因','pending',now())")
         r=self.submit().json();self.assertTrue(r['reused']);self.assertIsNone(r['application']['scope'])
         self.assertIsNone(r['application']['order_total_snapshot'])
-        from adventureworks_service import AdventureWorksService
-        with patch('adventureworks_service.connect_database',self.connect):
+        from backend.orders.adventureworks_service import AdventureWorksService
+        with patch('backend.orders.adventureworks_service.connect_database',self.connect):
             data=AdventureWorksService().get_refund_status('43659',customer_id=29825)
             denied=AdventureWorksService().get_refund_status('43659',customer_id=29672)
         self.assertEqual(data['refunds'][0]['refund_id'],'OLD');self.assertFalse(denied['success'])
@@ -206,7 +206,7 @@ class RefundWebTests(unittest.TestCase):
 
 class RefundChatTests(unittest.TestCase):
     def test_legacy_tool_reference_cannot_write_even_if_directly_invoked(self):
-        import langgraph_supervisor_1 as module
+        import backend.agent.langgraph_supervisor_1 as module
         with patch.object(module.order_service,'request_refund',side_effect=AssertionError('must not execute')) as write:
             result=module.request_refund.invoke({'order_id':'43659','reason':'用户提供原因'},config={})
         self.assertEqual(result['error_code'],'CHAT_WRITE_NOT_ALLOWED');write.assert_not_called()
@@ -214,18 +214,18 @@ class RefundChatTests(unittest.TestCase):
         self.assertIn('query_refund_status',[t.name for t in module.billing_tools])
 
     def test_refund_focus_maps_to_read_only_status_including_mixed_queries(self):
-        from task_state import ConversationTask,TaskParameters
-        from task_execution import read_operations
+        from backend.tasks.task_state import ConversationTask,TaskParameters
+        from backend.tasks.task_execution import read_operations
         task=ConversationTask(kind='order_query',agent='billing',focus=['refund'],parameters=TaskParameters(order_id=43659))
         self.assertEqual(read_operations(task),[('query_refund_status',{'order_id':'43659'})])
         task.focus=['order','refund']
         self.assertEqual([n for n,_ in read_operations(task)],['query_order','query_refund_status'])
 
     def test_graph_reads_application_created_outside_chat_and_fresh_review_status(self):
-        import langgraph_supervisor_1 as module
-        from chat_runtime import invoke_turn,final_reply
+        import backend.agent.langgraph_supervisor_1 as module
+        from backend.conversation.chat_runtime import invoke_turn,final_reply
         from evals.fixtures import CaseFixture
-        from task_state import TaskPlan,PlannedTask,TaskParameters
+        from backend.tasks.task_state import TaskPlan,PlannedTask,TaskParameters
         with CaseFixture('owner') as fixture:
             order=fixture.slots['own_order']
             plan=TaskPlan(tasks=[PlannedTask(next='billing',task_type='order_query',focus=['refund'],

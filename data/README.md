@@ -14,4 +14,4 @@
 
 文件扩展名虽为csv，当前导入器实际按UTF-8、无表头TSV读取。不要用Excel另存后直接替换，内容与现有sha256.json不一致时校验会拒绝；若采用不同来源版本，应先核对字段结构和数据一致性。
 
-在项目根目录运行 `python import_adventureworks.py --validate-only` 验证，再运行普通导入。`instawdb.sql`是SQL Server脚本，当前PostgreSQL导入流程不执行它。不要把真实客户订单或数据库导出提交到仓库。
+在项目根目录运行 `python -m scripts.import_adventureworks --validate-only` 验证，再运行普通导入。`instawdb.sql`是SQL Server脚本，当前PostgreSQL导入流程不执行它。不要把真实客户订单或数据库导出提交到仓库。

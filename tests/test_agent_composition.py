@@ -8,11 +8,11 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-import prompt_catalog
-from prompt_catalog import read_prompt
-from specialist_config import load_specialist_specs,validate_specialist_config,resolve_tools
-import skill_catalog
-from skill_catalog import load_skill,selected_skills
+import backend.agent.prompt_catalog as prompt_catalog
+from backend.agent.prompt_catalog import read_prompt
+from backend.agent.specialist_config import load_specialist_specs,validate_specialist_config,resolve_tools
+import backend.agent.skill_catalog as skill_catalog
+from backend.agent.skill_catalog import load_skill,selected_skills
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -38,7 +38,7 @@ class PromptExtractionTest(unittest.TestCase):
 
     def test_original_tool_implementations_and_signatures_are_unchanged(self):
         baseline=json.loads((ROOT/'tests/fixtures/agent_refactor_baseline.json').read_text(encoding='utf-8'))
-        definitions={n.name:n for n in ast.parse((ROOT/'business_tools.py').read_text(encoding='utf-8')).body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
+        definitions={n.name:n for n in ast.parse((ROOT/'backend/agent/business_tools.py').read_text(encoding='utf-8')).body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
         for name,expected in baseline['tools'].items():
             if name in {'search_products','query_products'}:continue  # Unified typed catalog contract intentionally extends these two signatures.
             with self.subTest(name=name):
@@ -46,7 +46,7 @@ class PromptExtractionTest(unittest.TestCase):
 
     def test_persisted_state_fields_and_reducer_are_unchanged(self):
         baseline=json.loads((ROOT/'tests/fixtures/agent_refactor_baseline.json').read_text(encoding='utf-8'))
-        state=next(n for n in ast.parse((ROOT/'graph_state.py').read_text(encoding='utf-8')).body if isinstance(n,ast.ClassDef))
+        state=next(n for n in ast.parse((ROOT/'backend/agent/graph_state.py').read_text(encoding='utf-8')).body if isinstance(n,ast.ClassDef))
         self.assertEqual(portable_ast_hash(state),baseline['state'])
 
     def test_unknown_prompt_and_path_are_rejected(self):

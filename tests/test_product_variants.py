@@ -3,13 +3,13 @@ import json
 import unittest
 from unittest.mock import patch
 from langchain_core.messages import AIMessage,ToolMessage
-from adventureworks_service import AdventureWorksService
-from postgres_config import connect_database
-from task_state import ConversationTask,TaskParameters,PlannedTask,TaskPlan
-from task_scheduler import prepare_plan,resolve_dependencies
-from constraint_updates import ConstraintConflict
-from product_variants import render_variants
-from chat_runtime import invoke_turn,final_reply
+from backend.orders.adventureworks_service import AdventureWorksService
+from backend.postgres_config import connect_database
+from backend.tasks.task_state import ConversationTask,TaskParameters,PlannedTask,TaskPlan
+from backend.tasks.task_scheduler import prepare_plan,resolve_dependencies
+from backend.tasks.constraint_updates import ConstraintConflict
+from backend.catalog.product_variants import render_variants
+from backend.conversation.chat_runtime import invoke_turn,final_reply
 from evals.fixtures import CaseFixture
 
 
@@ -112,8 +112,8 @@ class VariantTests(unittest.TestCase):
         self.assertEqual((second.parameters.variant_anchor_id,second.parameters.max_price),(989,600))
 
     def test_graph_displays_outside_price_and_next_quote_uses_displayed_variant(self):
-        import langgraph_supervisor_1 as project
-        from session_identity import identity_guard_node
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.session_identity import identity_guard_node
         with CaseFixture('owner') as fixture,patch.object(project,'supervisor_router') as router,patch.object(project.order_service,'search_products',side_effect=AssertionError('No semantic retrieval')):
             old,state=context()
             project.app.update_state({'configurable':{'thread_id':fixture.thread_id}},
@@ -129,10 +129,10 @@ class VariantTests(unittest.TestCase):
             self.assertIn('1129.98',final_reply(quoted['messages']).content)
 
     def test_tool_guard_rejects_model_widening_strict_variant_query(self):
-        from tool_execution import TurnPolicy,tool_execution_scope
-        from task_execution import read_operations
-        from test_tool_execution import ToolExecutionTest
-        import langgraph_supervisor_1 as project
+        from backend.agent.tool_execution import TurnPolicy,tool_execution_scope
+        from backend.tasks.task_execution import read_operations
+        from tests.test_tool_execution import ToolExecutionTest
+        import backend.agent.langgraph_supervisor_1 as project
         old,state=context();task=planned(old,state,'预算不变，查其他颜色')
         name,args=read_operations(task)[0];args['strict']=False
         with tool_execution_scope(TurnPolicy(task=task)),patch.object(project.order_service,'get_variants') as service:

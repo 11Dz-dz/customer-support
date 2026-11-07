@@ -20,10 +20,10 @@ IRRELEVANT=[
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--live',action='store_true');args=parser.parse_args()
     if not args.live:print('No model calls; 12 refusals, 2 mixed cases and a 3-turn continuation.');return 0
-    import langgraph_supervisor_1 as project
-    from chat_runtime import stream_turn
-    from conversation_replies import REPLIES
-    from chat_events import configure_event_log
+    import backend.agent.langgraph_supervisor_1 as project
+    from backend.conversation.chat_runtime import stream_turn
+    from backend.conversation.conversation_replies import REPLIES
+    from backend.observability.chat_events import configure_event_log
     from evals.fixtures import CaseFixture,source_fingerprint
     from evals.observer import EvaluationObserver
     root=Path(__file__).resolve().parents[1];batch=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid4().hex[:8]
@@ -31,7 +31,7 @@ def main():
     configure_event_log(directory/'events.jsonl')
     report={'batch':batch,'results':[],'source_before':source_fingerprint(),
         'code_files':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in [*root.glob('*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json'),*root.glob('skills/*/SKILL.md')]},
+            for p in [*root.glob('backend/**/*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json'),*root.glob('skills/*/SKILL.md')]},
         'limits':['Authored development cases, not unseen holdout','Model scope classification is not a mathematical guarantee','No semantic answer quality judge or load test']}
     def save():
         (directory/'report.json').write_text(json.dumps(report,indent=2,ensure_ascii=False,default=str),encoding='utf-8')
@@ -77,7 +77,7 @@ def main():
         report['source_after']=source_fingerprint();report['source_unchanged']=report['source_before']==report['source_after']
         report['passed']=len(report['results'])==15 and all(r['passed'] for r in report['results']) and report['source_unchanged']
         save()
-        from langsmith_tracing import flush_traces
+        from backend.observability.langsmith_tracing import flush_traces
         flush_traces()
     print(json.dumps({'executed':len(report['results']),'passed':report['passed']}),flush=True)
     return 0 if report['passed'] else 1

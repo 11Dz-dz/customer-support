@@ -5,6 +5,8 @@ from contextlib import contextmanager
 import signal
 import threading
 
+from backend.agent.deepseek_model import provider_body
+
 
 class JudgeDeadlineExceeded(RuntimeError):
     pass
@@ -98,10 +100,10 @@ def trajectory_checks(trace, spec, history):
 class AnswerJudge:
     def __init__(self, model=None):
         if model is None:
-            from langgraph_supervisor_1 import create_deepseek_model
+            from backend.agent.langgraph_supervisor_1 import create_deepseek_model
             model=create_deepseek_model(temperature=0,role='evaluation_judge').model_copy(
                 update={'streaming':False,'disable_streaming':True,'max_tokens':2048,
-                        'extra_body':__import__('deepseek_model').provider_body('evaluation_judge')})
+                        'extra_body':provider_body('evaluation_judge')})
         self.model=model
 
     def score(self,trace,context,evidence,contract):
@@ -112,7 +114,7 @@ class AnswerJudge:
                 super().on_llm_end(response,**kwargs)
                 generations=getattr(response,'generations',[])
                 if generations and generations[0]:
-                    from langsmith_tracing import redact_trace_data
+                    from backend.observability.langsmith_tracing import redact_trace_data
                     self.raw_response=redact_trace_data(getattr(generations[0][0].message,'content',None))
         observer=JudgeObserver(set());start=time.perf_counter()
         result={'status':'unavailable','score':None,'reasoning':None,'models':[]}

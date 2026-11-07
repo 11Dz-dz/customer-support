@@ -1,4 +1,4 @@
-# 处理中追加消息、排队与停止（2026-10-31）
+# 处理中追加消息、排队与停止
 
 ## 原来的问题
 
@@ -61,12 +61,12 @@
 
 | 文件 | 职责 |
 |---|---|
-| schema_web.sql | 新增web_run_inputs及运行输入关闭/停止标志，保留原订单与退款表 |
+| database/schema_web.sql | 新增web_run_inputs及运行输入关闭/停止标志，保留原订单与退款表 |
 | webapp/store.py | 原子接收、去重、有界队列、FIFO边界、交付确认、停止及回执 |
 | webapp/inbox.py | 单个后台处理段的收件箱和交付状态 |
-| turn_inbox.py | 请求级ContextVar、图检查点、任务修订答案合并；CLI没有收件箱时不接入 |
-| langgraph_supervisor_1.py | 在图边界读取补充、重规划、保留未受影响任务、最终交付控制 |
-| chat_runtime.py | 消息稳定ID、停止说明持久化、处理段初始化 |
+| backend/conversation/turn_inbox.py | 请求级ContextVar、图检查点、任务修订答案合并；CLI没有收件箱时不接入 |
+| backend/agent/langgraph_supervisor_1.py | 在图边界读取补充、重规划、保留未受影响任务、最终交付控制 |
+| backend/conversation/chat_runtime.py | 消息稳定ID、停止说明持久化、处理段初始化 |
 | webapp/runtime.py | 单执行者串行消费所有输入、公开事件、历史与重启中断 |
 | frontend/src/App.vue、messageState.js | 持续输入、发送方式、停止、回执、按回答ID处理流和重连去重 |
 | tests/test_turn_inbox.py | 真实隔离PostgreSQL、假模型的时间边界、预算更新、权限、重启与竞争检查 |
@@ -78,22 +78,3 @@ POST /api/conversations/{id}/messages保留message和client_request_id，新增�
 参考[nanobot会话收件箱](https://github.com/HKUDS/nanobot/blob/main/nanobot/agent/loop.py)、[运行循环检查点](https://github.com/HKUDS/nanobot/blob/main/nanobot/agent/runner.py)、[Pi补充与后续消息的区分](https://github.com/badlogic/pi-mono/blob/main/packages/agent/README.md#steering-and-follow-up)和[OpenClaw队列模式](https://github.com/openclaw/openclaw/blob/main/docs/concepts/queue.md)。本项目自行实现PostgreSQL收件箱，不把LangSmith Deployment的服务端多任务功能当作已安装的开源LangGraph能力，也未引入新的消息中间件。
 
 本轮重点验证消息接收、处理顺序、条件更新和交付边界，没有继续修改此前商品推荐相关性的判定方法。模型对复杂补充关系仍可能规划错误；输入被接收不等于所有语义变化都被正确理解，需要结合任务参数及工具轨迹核对。没有重跑旧80场景来替换此前推荐评分，也不宣称完成高并发压测。
-
-最终测试和部署记录见服务器logs/inflight_messages_verification_20261031.json。
-
-
-最终自动检查：335项后端测试通过（包含12项新增检查），前端类型检查、3项流式/消息状态测试和生产构建通过。真实DeepSeek时间边界实测包含：规划前追加预算、首次检索后追加预算、确认交付后转下一轮、显式独立问题排队；报告与代码哈希单独保存，不替代以前的全量评测。开发中发现历史时间区排序错误，修复为统一时间戳后再次验证。最终结果以服务器logs/inflight_messages_verification_20261031.json及关联实测报告为准。
-
-**2026-11-01验收口径补充：**上述真实4场景的“通过”是流程断言通过，三个预算场景实际返回通用兜底，未独立核实业务答案。新增SQL专项重新实测7场景：流程7/7，业务4/7，整体未通过。500以内没有整车却被渲染为“有候选但无法确认”，另一次原始“一款”被规划为五款。两项缺陷已定位、尚未改动。旧报告不覆盖，详见[最终答案验收及证据](../evals/INFLIGHT_ANSWERS.md)。
-
-
-## 追加消息答案修复及复测（2026-11-01）
-
-已区分无候选、用途证据不足、无效选择和查询失败。成功检索无候选时额外核对全目录价格/类别范围，只有确实为零才明确说明没有符合条件的商品；不会编造缺货。数量优先来自本轮真实用户输入，规划后与任务创建时双重校验，防止模型改写成五款覆盖原始一款。
-
-首轮修复7场景业务6/7，暴露同一尚未交付处理段内的合法旧候选被新前20清单排除。进一步只复用同一任务、本处理段开始后的成功检索，并重新应用新预算/类别；更早轮次和其他任务不可混入，当前查询失败时不拿旧成功掩盖。
-
-最终364项自动测试通过；同一评分器下重新实测7场景，流程7/7、业务答案7/7，原始数据未变。修复前4/7和中间6/7报告保留。最终批次20261101T082837Z-e3c3edf9；范围、问题与方法见[专项验收说明](../evals/INFLIGHT_ANSWERS.md)。此前长途骑行用途相关性仍保持原状态，不由这组测试宣称解决；未重跑旧80场景。
-
-
-追加消息修复最终收尾：额外部署检查曾发现“空检索后继续调用，其他工具失败导致无匹配事实未交付”。现仅在检索成功为空且精确范围为零时直接输出无匹配答复，不再进入专家工具循环；非零/失败不得短路。该核对绑定任务ID和revision，在收集时复用。最终366项自动测试通过；最终批次20261101T083833Z-6e8fda65中流程及业务答案均7/7，评分器不变。中间版本和额外部署失败报告均保留，最终HTTP验证单独保存，不覆盖。详细问题、改进和限制见[追加消息专项验收](../evals/INFLIGHT_ANSWERS.md)。

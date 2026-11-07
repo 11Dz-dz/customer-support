@@ -10,13 +10,13 @@ from langchain_core.messages import messages_from_dict, messages_to_dict
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent, ToolNode
 
-from context_budget import expert_context, message_chars
-from deepseek_model import ThinkingChatDeepSeek
+from backend.agent.context_budget import expert_context, message_chars
+from backend.agent.deepseek_model import ThinkingChatDeepSeek
 from evals.runtime_checks import execution_checks
-from task_execution import seed_product_search
-from task_scheduler import scoped_history
-from task_state import ConversationTask, TaskParameters
-from tool_execution import TurnPolicy, guarded_model, guarded_prompt, guarded_tool_call, tool_execution_scope
+from backend.tasks.task_execution import seed_product_search
+from backend.tasks.task_scheduler import scoped_history
+from backend.tasks.task_state import ConversationTask, TaskParameters
+from backend.agent.tool_execution import TurnPolicy, guarded_model, guarded_prompt, guarded_tool_call, tool_execution_scope
 
 
 def pair(*, program=False, reasoning=None):

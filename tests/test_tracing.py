@@ -15,10 +15,10 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph,MessagesState
 
-import langsmith_tracing as tracing
-from chat_events import emit_event
-from chat_runtime import invoke_turn,stream_turn,turn_config
-from request_deadline import invoke_model
+import backend.observability.langsmith_tracing as tracing
+from backend.observability.chat_events import emit_event
+from backend.conversation.chat_runtime import invoke_turn,stream_turn,turn_config
+from backend.agent.request_deadline import invoke_model
 
 
 class RecordingSession(requests.Session):

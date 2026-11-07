@@ -5,7 +5,7 @@ from uuid import uuid4
 import unittest
 
 from psycopg import sql
-from postgres_config import connect_database
+from backend.postgres_config import connect_database
 from evals.current_contracts import score_current
 from evals.judge_reference import load_reference
 

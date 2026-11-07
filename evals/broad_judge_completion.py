@@ -16,8 +16,8 @@ def main():
     from evals.frameworks import AnswerJudge
     from evals.broad_runner import ready_judge_reference
     from evals.calibration import calibrate
-    from catalog_query import capabilities
-    from deepseek_model import provider_settings
+    from backend.catalog.catalog_query import capabilities
+    from backend.agent.deepseek_model import provider_settings
     from evals.current_runner import save_report
     assert source_fingerprint()==source['manifest']['source_fingerprint']
     current=provider_settings();assert current['model']==source['manifest']['model']['model'] and current['base_url']==source['manifest']['model']['base_url']

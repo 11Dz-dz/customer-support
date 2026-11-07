@@ -38,8 +38,8 @@ profile_id表示模型配置；每次构建另生成唯一build_id。knowledge_b
 在新版代码目录执行：
 
 ```bash
-python build_product_knowledge.py --migrate-only
-python build_product_knowledge.py
+python -m scripts.build_product_knowledge --migrate-only
+python -m scripts.build_product_knowledge
 ```
 
 先停止旧建库脚本。第一条在事务中创建新结构，将原活动profile的向量原样复制成legacy构建并设置active_build_id；幂等执行，不重新Embedding、不删除旧表。第二条正常创建独立构建，未变向量直接复用。迁移成功后重启旧CLI，以使用新版检索代码。
@@ -48,6 +48,6 @@ python build_product_knowledge.py
 
 ## 验证与限制
 
-tests/test_knowledge_builds.py的10项真实PostgreSQL测试使用唯一临时schema、假Embedding：中途失败与并发读取、失败批次复用、未变文档复用、新profile失败、源描述改变、发布事务回滚、整批数据库回滚、Embedding数量不匹配、旧索引幂等迁移、dry-run与并发构建拒绝。全部通过；连同原套件共210项自动测试通过，不调用DeepSeek。
+tests/test_knowledge_builds.py的10项真实PostgreSQL测试使用唯一临时schema、假Embedding：中途失败与并发读取、失败批次复用、未变文档复用、新profile失败、源描述改变、发布事务回滚、整批数据库回滚、Embedding数量不匹配、旧索引幂等迁移、dry-run与并发构建拒绝。
 
-原112场景157轮是前一业务版本的模型回归证据，本次未重新运行，不能冒充本次新实测。当前没有自动清理旧构建；保留旧版本支持在途读取与失败复用，磁盘占用会随构建次数增加。该项目数据量小，暂不引入后台回收任务。
+旧构建会保留，以支持在途读取和失败复用。维护时需关注磁盘用量。

@@ -1,12 +1,12 @@
 import json
 import unittest
 from langchain_core.messages import HumanMessage,SystemMessage
-from task_state import TaskParameters,PlannedTask,TaskPlan,ConversationTask,PlannerParameters,QuoteLine
-from task_scheduler import prepare_plan
-from catalog_query import CatalogExpression,CatalogGroup,CatalogPredicate,matches,sql
-from constraint_updates import ConstraintConflict,recognized
-from context_budget import task_context_message,router_context,message_chars,planner_schema,ContextBudgetError
-from task_execution import read_operations
+from backend.tasks.task_state import TaskParameters,PlannedTask,TaskPlan,ConversationTask,PlannerParameters,QuoteLine
+from backend.tasks.task_scheduler import prepare_plan
+from backend.catalog.catalog_query import CatalogExpression,CatalogGroup,CatalogPredicate,matches,sql
+from backend.tasks.constraint_updates import ConstraintConflict,recognized
+from backend.agent.context_budget import task_context_message,router_context,message_chars,planner_schema,ContextBudgetError
+from backend.tasks.task_execution import read_operations
 
 
 def expression(*conditions):
@@ -123,7 +123,7 @@ class ReliabilityExpansionTests(unittest.TestCase):
         t=bind('商品989两件，商品984也要',kind='quote',params={'product_ids':[989,984]})
         self.assertEqual(t.status,'awaiting_input');self.assertEqual(t.parameters.product_ids,[989,984])
         self.assertEqual(t.parameters.quote_items,[QuoteLine(product_id=989,quantity=2)])
-        from task_execution import clarification
+        from backend.tasks.task_execution import clarification
         self.assertIn('商品984',clarification(t));self.assertIn('数量2',clarification(t))
 
     def test_bare_quantity_fills_only_one_missing_quote_line(self):
@@ -161,7 +161,7 @@ class ReliabilityExpansionTests(unittest.TestCase):
         self.assertNotIn('unit_price',str(read_operations(t)))
 
     def test_explicit_position_units_share_one_resolver(self):
-        from product_references import explicit_position
+        from backend.catalog.product_references import explicit_position
         for unit in ['条','件','款','个','项']:self.assertEqual(explicit_position('找比第二'+unit+'便宜的'),2)
         self.assertEqual(explicit_position('第十二条'),12)
 
@@ -179,14 +179,14 @@ class ReliabilityExpansionTests(unittest.TestCase):
         self.assertFalse(outcome(product_answer_checks(text,{'products':[{'product_id':1}],'quantity':1}))['passed'])
 
     def test_informational_variant_is_not_invented_as_in_budget(self):
-        from product_variants import render_variants
+        from backend.catalog.product_variants import render_variants
         result={'variant_axis':'color','anchor':{'product_id':989,'list_price':'539.99'},'price_filters':{'max_price':550},
             'products':[{'product_id':984,'name':'Silver','color':'Silver','size':'40','list_price':'564.99','price_known':True,'within_price':False}],
             'strict':False,'returned_count':1,'matched_count':1}
         self.assertIn('不符合原价格条件',render_variants(result))
 
     def test_compound_bicycle_modifier_does_not_override_component_head(self):
-        from product_taxonomy import mentions
+        from backend.catalog.product_taxonomy import mentions
         for text,expected in [('旅行车把','handlebar'),('山地车轮','wheel'),('公路车座','saddle')]:
             with self.subTest(text=text):self.assertEqual({m[2] for m in mentions(text)},{expected})
         self.assertEqual(mentions('骑行服装'),[])
@@ -218,7 +218,7 @@ class ReliabilityExpansionTests(unittest.TestCase):
             [[{'product_id':989,'quantity':2}],[{'product_id':984,'quantity':1}]])
 
     def test_adjacent_chinese_and_english_type_name(self):
-        from product_taxonomy import mentions
+        from backend.catalog.product_taxonomy import mentions
         self.assertEqual({m[2] for m in mentions('列出三款helmet')},{'helmet'})
         self.assertEqual(mentions('wheelchair'),[])
 

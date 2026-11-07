@@ -11,7 +11,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from psycopg import sql
 
-from postgres_config import connect_database
+from backend.postgres_config import connect_database
 from webapp.api import create_app
 from webapp.runtime import WebRuntime
 from webapp.store import WebStore,WebError,hash_password,verify_password
@@ -47,7 +47,7 @@ class WebTests(unittest.TestCase):
 
     def tearDown(self):
         self.gate.set();self.client.__exit__(None,None,None)
-        from conversation_persistence import get_checkpointer
+        from backend.conversation.conversation_persistence import get_checkpointer
         with self.store.connect() as c:
             threads=c.execute('SELECT thread_id FROM web_conversations').fetchall()
         for row in threads:
@@ -94,7 +94,7 @@ class WebTests(unittest.TestCase):
         self.auth=self.login('NEW-USER','register-password')
         self.assertEqual(self.client.get('/api/admin/tickets').status_code,403)
         cid=self.conversation()
-        from session_identity import get_session_customer
+        from backend.conversation.session_identity import get_session_customer
         self.assertIsNone(get_session_customer(self.store.owned(row['user_id'],cid)['thread_id']))
         self.assertEqual(self.client.get('/api/conversations').json()[0]['conversation_id'],cid)
 
@@ -256,9 +256,9 @@ class WebTests(unittest.TestCase):
 
     def test_real_graph_two_users_execute_concurrently_with_own_identity(self):
         from concurrent.futures import ThreadPoolExecutor
-        import langgraph_supervisor_1 as project
-        from chat_runtime import stream_turn
-        from task_state import TaskPlan,PlannedTask,TaskParameters
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import stream_turn
+        from backend.tasks.task_state import TaskPlan,PlannedTask,TaskParameters
         self.store.create_user('owner_a','owner-a-password','Owner A',customer_id=29825)
         self.store.create_user('owner_b','owner-b-password','Owner B',customer_id=29672)
         self.auth=self.login('owner_a','owner-a-password');ca=self.conversation()

@@ -16,20 +16,20 @@ def main():
     args=parser.parse_args()
     root=Path(__file__).resolve().parents[1]
     sys.path.insert(0,str(root))
-    import langgraph_supervisor_1 as project
+    import backend.agent.langgraph_supervisor_1 as project
     from langchain_core.messages import AIMessage,HumanMessage,SystemMessage
     from langgraph.prebuilt import ToolNode
     from langgraph.graph import StateGraph,START,END
     from typing import TypedDict
-    from context_budget import expert_context
+    from backend.agent.context_budget import expert_context
     from evals.observer import EvaluationObserver
     from evals.fixtures import source_fingerprint
-    from request_deadline import invoke_model
-    from task_state import ConversationTask,TaskParameters
-    from tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
-    from tool_result import business_payload
+    from backend.agent.request_deadline import invoke_model
+    from backend.tasks.task_state import ConversationTask,TaskParameters
+    from backend.agent.tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
+    from backend.agent.tool_result import business_payload
     before=source_fingerprint()
-    hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.glob('*.py')}
+    hashes={p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in root.glob('backend/**/*.py')}
     observer=EvaluationObserver(set())
     config={'callbacks':[observer],'metadata':{'agent':'sales'}}
     # Explicitly exercise thinking even if provider defaults change later.

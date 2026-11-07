@@ -7,9 +7,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage,HumanMessage,ToolMessage
-from turn_inbox import merge_inflight_plan
-from task_state import ConversationTask,TaskParameters,TaskPlan,PlannedTask
-import test_web as web_tests
+from backend.conversation.turn_inbox import merge_inflight_plan
+from backend.tasks.task_state import ConversationTask,TaskParameters,TaskPlan,PlannedTask
+from tests import test_web as web_tests
 
 
 class InboxWebTests(unittest.TestCase):
@@ -122,8 +122,8 @@ class InboxWebTests(unittest.TestCase):
         self.store.finish(root['run_id'],'interrupted','error',{'message':'test cleanup'})
 
     def graph_models(self,phase='expert'):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import stream_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import stream_turn
         self.runtime.stream=stream_turn;self.runtime.graph=project.app
         entered,release=threading.Event(),threading.Event()
         self.addCleanup(release.set)
@@ -194,8 +194,8 @@ class InboxWebTests(unittest.TestCase):
 
 class InflightPlanTests(unittest.TestCase):
     def test_handoff_write_only_starts_after_final_input_boundary(self):
-        import langgraph_supervisor_1 as project
-        from turn_inbox import inbox_scope
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.turn_inbox import inbox_scope
         task=ConversationTask(kind='human_handoff',agent='billing')
         class Inbox:
             sealed=False

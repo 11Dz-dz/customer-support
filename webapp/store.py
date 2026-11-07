@@ -8,7 +8,7 @@ import secrets
 from uuid import uuid4
 from psycopg.errors import UniqueViolation
 
-from postgres_config import connect_database
+from backend.postgres_config import connect_database
 
 
 class WebError(Exception):
@@ -44,7 +44,7 @@ class WebStore:
     def initialize(self):
         with self.connect() as c:
             c.execute('SELECT pg_advisory_xact_lock(48151340)')
-            c.execute((Path(__file__).resolve().parents[1]/'schema_web.sql').read_text())
+            c.execute((Path(__file__).resolve().parents[1]/'database/schema_web.sql').read_text())
 
     def create_user(self,username,password,display_name,role='user',customer_id=None):
         if role not in {'user','admin'}:raise ValueError('无效角色')
@@ -124,7 +124,7 @@ class WebStore:
         return row
 
     def create_conversation(self,user,title):
-        from session_identity import bind_session_customer
+        from backend.conversation.session_identity import bind_session_customer
         cid=uuid4();thread='web-'+uuid4().hex
         # Trusted user/customer mapping comes from the administrator-created account.
         if user['customer_id'] is not None:bind_session_customer(thread,user['customer_id'])

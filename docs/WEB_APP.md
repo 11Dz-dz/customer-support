@@ -27,32 +27,9 @@
 
 其他边界：账号支持用户自行注册，也保留管理员创建；尚无忘记密码、外部SSO；历史列表暂取最近100个会话；工单页提供领取和完成记录，没有真人即时聊天或主动通知。事件和登录资料需要后续按实际使用量配置清理策略。SSH隧道版本只监听回环地址；公开部署需HTTPS和正确代理配置。
 
-## 使用现有服务器
-
-项目根目录：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
-
-```bash
-# 服务器重启后，若原数据库未运行，先启动原集群
-pg_ctlcluster 17 main start
-
-cd /root/rivermind-data/Agent/example/langgraph_olist_example
-/opt/conda/envs/agent/bin/python manage_web_service.py start
-/opt/conda/envs/agent/bin/python manage_web_service.py status
-# 停止时等待执行中的任务收尾
-/opt/conda/envs/agent/bin/python manage_web_service.py stop
-```
-
-在自己电脑终端建立隧道（命令中不包含密码）：
-
-```bash
-ssh -N -L 127.0.0.1:8000:127.0.0.1:8000 -p SSH_PORT USER@SSH_HOST
-```
-
-保持终端开启，浏览器访问`http://127.0.0.1:8000`，不要换成localhost：服务校验精确站点来源。隧道断开后重建即可，页面重连不会重新提交业务。
-
 ## 新环境部署
 
-先按根README准备Python、PostgreSQL、pgvector、样例数据和模型，再安装`requirements-web.txt`。新增表来自`schema_web.sql`及`schema_refunds.sql`。前者存Web身份和运行，后者补充退款提交去重、申请范围/金额快照和审核审计；保留原refund_requests，不覆盖订单、商品或原会话。应用启动会执行幂等建表。
+先按根README准备Python、PostgreSQL、pgvector、样例数据和模型，再安装`requirements-web.txt`。新增表来自`database/schema_web.sql`及`database/schema_refunds.sql`。前者存Web身份和运行，后者补充退款提交去重、申请范围/金额快照和审核审计；保留原refund_requests，不覆盖订单、商品或原会话。应用启动会执行幂等建表。
 
 前端构建需要Node.js兼容版本和pnpm：
 
@@ -63,12 +40,12 @@ pnpm run build
 pnpm test
 ```
 
-将frontend/dist放在服务器同一位置。默认由FastAPI同源提供静态文件，无需在服务器安装Node。原服务器没有Nginx，本次SSH隧道采用直接同源服务；`deploy/nginx.conf.example`提供未来代理配置。若启用代理或域名，设置`WEB_BASE_URL`为浏览器精确Origin，转发Host并关闭流式缓冲。
+从项目的 `frontend/dist` 部署构建产物，FastAPI 会同源提供静态文件。可以在构建环境安装 Node，部署环境只需 Python 服务。代理配置示例见 `deploy/nginx.conf.example`。启用代理或域名时，将 `WEB_BASE_URL` 设为浏览器使用的准确 Origin，转发 Host 并关闭流式缓冲。
 
 ```bash
 # 密码通过交互输入，不写在命令参数中
-python manage_web_users.py customer --display-name 演示客户 --customer-id 29825
-python manage_web_users.py operator --display-name 管理员 --role admin
+python -m scripts.manage_web_users customer --display-name 演示客户 --customer-id 29825
+python -m scripts.manage_web_users operator --display-name 管理员 --role admin
 python -m uvicorn webapp.api:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
@@ -100,24 +77,15 @@ WEB_BASE_URL默认http://127.0.0.1:8000；WEB_MAX_CONCURRENT_RUNS默认2，范�
 - `webapp/runtime.py`：受限工作线程、同进程ContextVar、重启中断及公开历史。
 - `webapp/api.py`：HTTP接口、认证、CSRF和流式事件。
 - `frontend/`：登录、会话、聊天、工单与管理员页面；`src/OrdersPanel.vue`负责订单与退款审核。
-- `refund_service.py`、`schema_refunds.sql`：订单归属检查、整单申请事务、提交去重与审核审计。
+- `backend/orders/refund_service.py`、`database/schema_refunds.sql`：订单归属检查、整单申请事务、提交去重与审核审计。
 - `tests/test_refund_web.py`：隔离PostgreSQL中的申请、审核、并发、权限、回滚和旧申请兼容检查。
-- `manage_web_users.py`、`manage_web_service.py`：可信本地管理入口。
+- `scripts/manage_web_users.py`、`scripts/manage_web_service.py`：可信本地管理入口。
 - `tests/test_web.py`：真实PostgreSQL临时表、模拟模型下的Web功能与权限检查。
 - `frontend/tests/sse.test.mjs`：网络分块、事件拼接及游标内容解析。
 
 验证时包含：重复请求不重复执行、两个用户并发访问同一订单只允许所属客户看到、跨用户会话/运行不可读、普通用户不能管理工单、领取/完成留痕、重启不自动重放。新增测试只操作临时账号、会话和工单，结束限定清理；不把自动检查等同于生产容量或真实客户验收。
 
-## 本次验收记录（2026-10-29）
-
-正式目录237项自动测试通过（含15项新增Web测试），前端类型检查、生产构建和SSE分块解析测试通过。实际浏览器已完成登录、真实DeepSeek商品推荐与订单补充、刷新恢复、工单创建、管理员领取完成及客户查看结果，共11项流程检查通过；手机抽屉导航和无横向溢出检查通过。
-
-回归发现并修复共享检查点连接池提前关闭的问题；首次浏览器验收发现新建会话加载时输入可能被清空，已增加加载禁用状态后复核通过。早期失败与后续通过记录分别保留。没有重跑全部历史模型集合。服务只监听127.0.0.1:8000，使用SSH隧道访问。私有记录在logs/web_verification_20261029.json，账号文件不提交Git。
-
-
-## 退款流程改造（2026-10-29，接续上述Web版本）
-
-问题是用户在聊天说“我想要对这个订单进行退款”后，旧流程只读了订单，最后却展示整段订单明细。排查确认：任务识别成申请，专家没有提交申请；回答计划的order_id类型无效触发默认渲染，而且任务完成没有证明申请创建。此次按产品流程调整职责，聊天不再承担提交退款这一写操作。
+## 退款申请与审核
 
 现在用户操作：左侧「我的订单」→查看订单→「申请退款」→填写原因→勾选整单确认→「确认提交申请」。后台先根据登录账号找客户，再锁住归属订单；从数据库取订单应付总额作参考快照，不接受浏览器指定客户、审核状态或退款金额。数据源缺少支付流水与退款政策，不能把参考快照当成实付/实际可退金额，也不据发货状态自动批准退款。
 
@@ -132,10 +100,7 @@ WEB_BASE_URL默认http://127.0.0.1:8000；WEB_MAX_CONCURRENT_RUNS默认2，范�
 自动测试中原来“聊天可以写退款”的断言改为“只指引且零写入”，保留原业务方法的权限/幂等兼容检查；增加网页流程检查。旧评测中要求Agent调用request_refund的用例属于旧能力验收，不能直接当作本版本通过标准，也没有宣称本次重跑全部历史DeepSeek集合。
 
 
-本轮验证：254项自动测试通过，其中tests/test_refund_web.py新增17项（14项HTTP/业务事务与3项聊天边界/真实图检查）；另有旧退款测试按新边界更新断言。浏览器13项检查通过，包含3轮真实DeepSeek对话、申请及审核持久化、客户查询新状态、手机布局和不展示请求编号。早期脚本因URL拼接及两个同名“审核通过”按钮定位失败，修正脚本后通过；失败记录保留，未掩盖或计为业务通过。验收只用有标记的临时订单，结束删除测试记录并比对源商品/订单指纹。
-
-
-## 订单列表与退款状态联动（2026-10-29）
+## 订单列表与退款状态联动
 
 之前订单列表只读取orders.status_code，申请记录虽已保存，列表却一直仅显示“已发货”；返回列表也可能沿用旧缓存。现在列表和详情都根据数据库中的退款申请生成display_status：待审核显示“退款待审核”，通过显示“退款审核通过”，拒绝/取消也显示对应结果；同时保留独立的履约状态。没有申请时继续显示原订单状态。活动申请优先于历史拒绝或取消记录，避免重新申请后被旧记录遮住。
 
@@ -143,15 +108,13 @@ WEB_BASE_URL默认http://127.0.0.1:8000；WEB_MAX_CONCURRENT_RUNS默认2，范�
 
 新增两项真实PostgreSQL检查覆盖无申请、待审核、拒绝、再次申请、通过、历史取消及旧记录干扰，并校验履约状态始终保留。
 
-本次状态联动验证：256项自动测试通过（新增2项），前端类型检查、构建与SSE测试通过；针对既有订单SO67260完成6项只读浏览器检查，列表、详情、返回列表与刷新均显示退款待审核，履约状态仍为已发货。未重复提交或修改该订单的退款申请。
-
 
 ## LangSmith执行链路排查
 
 网页工作线程中每个顺序对话段对应一条LangSmith根链路；排队输入可在同一个web_run_id下产生多个顺序根链路，metadata包含web_run_id与thread_id；普通用户页面不展示请求编号，也不直接持有LangSmith密钥。服务端统一过滤上传副本，流式输出及会话持久化保持原入口。配置、排查与仅写密钥的边界见[LangSmith说明](LANGSMITH_TRACING.md)。退款申请/审核接口仍用数据库审计，不伪装成模型工具执行。
 
 
-## 寒暄与按当前账号定位订单（2026-10-30）
+## 寒暄与按当前账号定位订单
 
 **遇到的问题：**用户说“你好”进入业务规划后返回格式错误；说“我有一个正在退款的订单”又被要求先提供编号。日志确认前者发生了OutputParserException，后者原本只有按订单号查详情的能力，没有按当前客户定位订单的工具。
 
@@ -163,23 +126,16 @@ WEB_BASE_URL默认http://127.0.0.1:8000；WEB_MAX_CONCURRENT_RUNS默认2，范�
 
 重新查询账户范围时会清除之前选定的单笔编号及旧的退款筛选；无结果只说明当前账号在该筛选下没有匹配，不复用旧申请掩盖本轮结果。给出错误编号或明确说稍后补编号时，仍保留等待补充，不擅自扩大为账户查询。游客/未绑定账号无法枚举订单。
 
-**文件职责：**conversation_replies.py管理常规对话；adventureworks_service.py新增按当前客户的只读列表；task_state.py与task_execution.py管理查询范围及执行映射；langgraph_supervisor_1.py接入意图、工具及单笔/多笔的状态交接；answer_contract.py只按工具事实展示候选。账单工具由4个增为5个，总计12个业务工具。没有改动数据库表结构或原始订单。
-
-测试新增13项，覆盖寒暄不调业务工具、复合请求、身份隔离、退款状态筛选、单笔定位、多笔选择、限制展示数量、后续追问、空结果、切回账户范围及错误编号。全套277项自动测试通过；自动测试用假模型及隔离的真实PostgreSQL数据，不代替后续真实模型验证。
-
-本轮最终验收：277项自动测试通过；9项真实模型/图流程检查通过（其中常规寒暄走无模型入口），包括原问题、单笔后续追问、多笔选择、自然能力介绍、稍后补编号、无效编号和游客拒绝。部署后6项网页检查通过，原会话结构兼容；首轮网页检查因本地隧道断开未访问服务，恢复隧道后重新通过。原始业务数据未修改，临时会话已限定清理。私有记录：logs/customer_conversation_verification_20261030.json。
+**文件职责：**backend/conversation/conversation_replies.py管理常规对话；backend/orders/adventureworks_service.py新增按当前客户的只读列表；backend/tasks/task_state.py与backend/tasks/task_execution.py管理查询范围及执行映射；backend/agent/langgraph_supervisor_1.py接入意图、工具及单笔/多笔的状态交接；backend/agent/answer_contract.py只按工具事实展示候选。账单工具由4个增为5个，总计12个业务工具。没有改动数据库表结构或原始订单。
 
 
-## 处理中连续发送（2026-10-31）
+## 处理中连续发送
 
 **问题：**第一条未答复时，预算等补充被前后端忙碌控制挡住。
 
 **改进：**新增数据库收件箱，继续保留单会话单执行者；默认在图检查点纳入补充并更新受影响任务，也可明确排到下一轮。确认交付后的消息自动排队，不覆盖已开始输出的回答；新增协作式停止和回执。队列、时序、容量、重启边界及文件职责见[完整说明](INFLIGHT_MESSAGES.md)。
 
 
-最终自动检查：335项后端测试通过（包含12项新增检查），前端类型检查、3项流式/消息状态测试和生产构建通过。真实DeepSeek时间边界实测包含：规划前追加预算、首次检索后追加预算、确认交付后转下一轮、显式独立问题排队；报告与代码哈希单独保存，不替代以前的全量评测。开发中发现历史时间区排序错误，修复为统一时间戳后再次验证。最终结果以服务器logs/inflight_messages_verification_20261031.json及关联实测报告为准。
-
-
-## 自行注册（2026-11-02）
+## 自行注册
 
 新增登录页注册入口和POST /api/auth/register，新账号固定普通用户且不绑定订单客户；密码校验、重复账号、数据库限流和客户权限边界详见[账号注册说明](ACCOUNT_REGISTRATION.md)。

@@ -3,8 +3,8 @@ from decimal import Decimal
 import json
 import unittest
 
-from adventureworks_service import AdventureWorksService
-from postgres_config import connect_database
+from backend.orders.adventureworks_service import AdventureWorksService
+from backend.postgres_config import connect_database
 
 
 class ProductQueryTest(unittest.TestCase):

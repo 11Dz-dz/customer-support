@@ -16,10 +16,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel,ConfigDict,Field,StrictBool,model_validator
 
-from postgres_config import load_project_env
+from backend.postgres_config import load_project_env
 from webapp.store import WebStore,WebError
 from webapp.runtime import WebRuntime
-from refund_service import RefundService,RefundError,ensure_refund_schema
+from backend.orders.refund_service import RefundService,RefundError,ensure_refund_schema
 
 
 class Input(BaseModel):
@@ -83,8 +83,8 @@ def create_app(store=None,runtime=None,base_url=None,static_dir=None):
 
     @asynccontextmanager
     async def lifespan(app):
-        from human_handoff import ensure_handoff_schema
-        from chat_events import configure_event_log
+        from backend.conversation.human_handoff import ensure_handoff_schema
+        from backend.observability.chat_events import configure_event_log
         await asyncio.to_thread(store.initialize)
         await asyncio.to_thread(ensure_refund_schema,store.connect)
         await asyncio.to_thread(ensure_handoff_schema)
@@ -250,18 +250,18 @@ def create_app(store=None,runtime=None,base_url=None,static_dir=None):
 
     @app.get('/api/admin/tickets')
     def admin_list(status:str='pending',u=Depends(admin)):
-        from human_handoff import admin_list
+        from backend.conversation.human_handoff import admin_list
         try:return admin_list(status)
         except ValueError as exc:raise WebError(422,'INVALID_STATUS',str(exc)) from None
 
     @app.get('/api/admin/tickets/{ticket_id}')
     def admin_show(ticket_id:str,u=Depends(admin)):
-        from human_handoff import admin_show
+        from backend.conversation.human_handoff import admin_show
         try:return admin_show(ticket_id)
         except ValueError:raise WebError(404,'NOT_FOUND','工单不存在') from None
 
     def transition(ticket,action,u,note=None):
-        from human_handoff import admin_transition
+        from backend.conversation.human_handoff import admin_transition
         try:return admin_transition(ticket,action,'web:'+str(u['user_id']),note)
         except ValueError as exc:raise WebError(409,'TICKET_CONFLICT',str(exc)) from None
 

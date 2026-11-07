@@ -1,6 +1,6 @@
 """真实 PostgreSQL 的会话映射和越权回归；假路由/假专业模型，不调用 DeepSeek。"""
 import json
-from tool_result import business_payload
+from backend.agent.tool_result import business_payload
 from pathlib import Path
 import subprocess
 import sys
@@ -11,11 +11,11 @@ from uuid import uuid4
 
 from langchain_core.messages import AIMessage, ToolMessage
 
-from adventureworks_service import AdventureWorksService
-from chat_runtime import invoke_turn
-from conversation_persistence import get_checkpointer
-from postgres_config import connect_database
-from session_identity import (IDENTITY_VERSION, IdentityConflictError, bind_session_customer,
+from backend.orders.adventureworks_service import AdventureWorksService
+from backend.conversation.chat_runtime import invoke_turn
+from backend.conversation.conversation_persistence import get_checkpointer
+from backend.postgres_config import connect_database
+from backend.conversation.session_identity import (IDENTITY_VERSION, IdentityConflictError, bind_session_customer,
                               current_customer_id, customer_identity_scope, get_session_customer,
                               validate_session_state)
 
@@ -31,7 +31,7 @@ class RouterStub:
 
 class BillingStub:
     def invoke(self, state, config):
-        from langgraph_supervisor_1 import query_order
+        from backend.agent.langgraph_supervisor_1 import query_order
         order_id = state["messages"][-1].content
         call = {"name": "query_order", "args": {"order_id": order_id}, "id": "call-" + uuid4().hex}
         result = query_order.invoke({**call, "type": "tool_call"}, config)
@@ -71,7 +71,12 @@ class SessionIdentityTest(unittest.TestCase):
         return {"messages": [], "identity_version": IDENTITY_VERSION, "identity_customer_id": owner}
 
     def test_mapping_survives_new_process_and_binding_is_immutable(self):
-        script = "from session_identity import get_session_customer; import sys; print(get_session_customer(sys.argv[1]))"
+        script = """
+import sys
+from backend.conversation.session_identity import get_session_customer
+
+print(get_session_customer(sys.argv[1]))
+"""
         result = subprocess.run([sys.executable, "-c", script, self.thread_a], cwd=Path(__file__).resolve().parent.parent,
                                 capture_output=True, text=True, check=True, timeout=35)
         self.assertEqual(int(result.stdout.strip()), self.owner_a)
@@ -99,7 +104,7 @@ class SessionIdentityTest(unittest.TestCase):
             self.assertEqual(method()["error_code"], "SESSION_UNBOUND")
 
     def test_tool_schemas_hide_identity_and_forged_arguments_cannot_change_user(self):
-        from langgraph_supervisor_1 import billing_tools, query_order
+        from backend.agent.langgraph_supervisor_1 import billing_tools, query_order
         for tool in billing_tools:
             fields = tool.tool_call_schema.model_json_schema()["properties"]
             self.assertNotIn("customer_id", fields)
@@ -113,7 +118,7 @@ class SessionIdentityTest(unittest.TestCase):
         self.assertEqual(denied["error_code"], "ORDER_NOT_ACCESSIBLE")
 
     def test_all_billing_tools_deny_guest_and_direct_calls_without_scope(self):
-        from langgraph_supervisor_1 import billing_tools
+        from backend.agent.langgraph_supervisor_1 import billing_tools
         for tool in billing_tools:
             arguments = {"order_id": "43659"}
             if tool.name == "request_refund":
@@ -145,7 +150,7 @@ class SessionIdentityTest(unittest.TestCase):
                 conn.execute("DELETE FROM orders WHERE order_id=%s AND order_number='TEST-IDENTITY-REFUND'", (test_id,))
 
     def test_real_graph_persists_identity_and_isolates_multiple_turns(self):
-        import langgraph_supervisor_1 as module
+        import backend.agent.langgraph_supervisor_1 as module
         router = RouterStub()
         with patch.object(module, "supervisor_router", router), patch.object(module, "billing_agent", BillingStub()):
             first = invoke_turn(module.app, "43659", self.thread_a)
@@ -163,11 +168,11 @@ class SessionIdentityTest(unittest.TestCase):
         self.assertEqual(saved.checkpoint["channel_values"]["identity_customer_id"], self.owner_a)
 
     def test_parallel_toolnode_threads_receive_the_same_verified_identity(self):
-        import langgraph_supervisor_1 as module
+        import backend.agent.langgraph_supervisor_1 as module
         from langchain_core.outputs import ChatGeneration, ChatResult
         from langgraph.prebuilt import ToolNode, create_react_agent
         from tests.test_tool_execution import LoopModel
-        from tool_execution import guarded_model, guarded_prompt, guarded_tool_call
+        from backend.agent.tool_execution import guarded_model, guarded_prompt, guarded_tool_call
 
         class ParallelOrderModel(LoopModel):
             def _generate(self, messages, stop=None, run_manager=None, **kwargs):
@@ -194,8 +199,8 @@ class SessionIdentityTest(unittest.TestCase):
     def test_legacy_history_is_preserved_but_not_loaded_or_rebound(self):
         from tests.test_chat_runtime import echo_graph
         from langchain_core.messages import HumanMessage
-        import langgraph_supervisor_1 as module
-        from run_multiturn import display_history
+        import backend.agent.langgraph_supervisor_1 as module
+        from scripts.run_multiturn import display_history
         tid = self.thread()
         echo_graph().invoke({"messages": [HumanMessage(content="legacy-private-marker")]},
                             {"configurable": {"thread_id": tid}})
@@ -212,7 +217,7 @@ class SessionIdentityTest(unittest.TestCase):
         self.assertIn("legacy-private-marker", str(saved.checkpoint["channel_values"]["messages"]))
 
     def test_guest_conversation_cannot_later_be_bound_to_another_identity(self):
-        import langgraph_supervisor_1 as module
+        import backend.agent.langgraph_supervisor_1 as module
         with patch.object(module, "supervisor_router", RouterStub()), patch.object(module, "billing_agent", BillingStub()):
             result = invoke_turn(module.app, "43659", self.guest)
         self.assertIsNone(result["identity_customer_id"])
@@ -223,7 +228,7 @@ class SessionIdentityTest(unittest.TestCase):
             bind_session_customer(self.guest, self.owner_a)
 
     def test_database_mapping_tampering_blocks_history_before_routing(self):
-        import langgraph_supervisor_1 as module
+        import backend.agent.langgraph_supervisor_1 as module
         with patch.object(module, "supervisor_router", RouterStub()), patch.object(module, "billing_agent", BillingStub()):
             invoke_turn(module.app, "43659", self.thread_a)
         with connect_database() as conn:

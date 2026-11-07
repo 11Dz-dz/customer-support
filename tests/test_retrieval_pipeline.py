@@ -7,9 +7,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage,HumanMessage,SystemMessage,ToolMessage
-from context_budget import expert_context,message_chars
-from retrieval_pipeline import candidate_pool,lexical_expression,diverse_selection
-from task_state import ConversationTask,TaskParameters
+from backend.agent.context_budget import expert_context,message_chars
+from backend.catalog.retrieval_pipeline import candidate_pool,lexical_expression,diverse_selection
+from backend.tasks.task_state import ConversationTask,TaskParameters
 
 
 def product(pid,model=None,desc='适用于测试用途',price=10):
@@ -70,8 +70,8 @@ class RetrievalPipelineTests(unittest.TestCase):
         self.assertTrue(stats['omitted_candidate_ids']);self.assertLessEqual(message_chars(output),7000)
 
     def test_invalid_plan_never_automatically_picks_first_five(self):
-        from langgraph_supervisor_1 import limit_product_plan
-        from task_result import TaskResult,ToolEvidence
+        from backend.agent.langgraph_supervisor_1 import limit_product_plan
+        from backend.tasks.task_result import TaskResult,ToolEvidence
         result=TaskResult(current=[ToolEvidence(tool='search_products',data={'success':True,'products':[product(i) for i in range(1,9)]})])
         task=ConversationTask(kind='product_search',parameters=TaskParameters(limit=5))
         for content in ['invalid','{"product_ids":[]}','{"product_ids":[999]}']:
@@ -81,23 +81,23 @@ class RetrievalPipelineTests(unittest.TestCase):
         self.assertEqual(selected,[8,7])
 
     def test_changed_purpose_does_not_reuse_old_keyword_expansions(self):
-        from task_state import PlannedTask,prepare_task
+        from backend.tasks.task_state import PlannedTask,prepare_task
         old=ConversationTask(kind='product_search',agent='sales',parameters=TaskParameters(keyword='touring',search_terms=['long distance']))
         plan=PlannedTask(next='sales',task_type='product_search',continuation=True,parameters=TaskParameters(keyword='helmet'))
         new=prepare_task(plan,old.model_dump())
         self.assertEqual(new.parameters.search_terms,[])
 
     def test_empty_new_selection_cannot_reuse_previous_selected_product(self):
-        from task_state import complete_task
-        from task_result import TaskResult,ToolEvidence
+        from backend.tasks.task_state import complete_task
+        from backend.tasks.task_result import TaskResult,ToolEvidence
         task=ConversationTask(kind='product_search',parameters=TaskParameters(product_ids=[1]))
         result=TaskResult(current=[ToolEvidence(tool='search_products',data={'success':True,'products':[product(2)]})])
         saved=complete_task(task,result,[])
         self.assertEqual(saved.parameters.product_ids,[]);self.assertEqual(saved.displayed_product_ids,[])
 
     def test_retry_selection_can_use_verified_retained_candidates(self):
-        from langgraph_supervisor_1 import limit_product_plan
-        from task_result import TaskResult,ToolEvidence
+        from backend.agent.langgraph_supervisor_1 import limit_product_plan
+        from backend.tasks.task_result import TaskResult,ToolEvidence
         result=TaskResult(retained=[ToolEvidence(tool='search_products',data={'success':True,'products':[product(1)]})],
                           current=[ToolEvidence(tool='search_products',data={'success':True,'products':[product(2)]})])
         task=ConversationTask(kind='product_search',retry_failed=True,parameters=TaskParameters(limit=2))
@@ -105,7 +105,7 @@ class RetrievalPipelineTests(unittest.TestCase):
         self.assertEqual(selected,[1,2])
 
     def test_retry_context_keeps_successful_same_task_evidence(self):
-        from task_state import OperationRecord
+        from backend.tasks.task_state import OperationRecord
         task=ConversationTask(kind='product_search',retry_failed=True,operations=[OperationRecord(
             operation_id='old',tool='search_products',arguments={},status='succeeded',call_id='old')])
         messages=[HumanMessage(content='original'),AIMessage(content='',tool_calls=[
@@ -115,7 +115,7 @@ class RetrievalPipelineTests(unittest.TestCase):
         self.assertEqual(stats['visible_candidate_ids'],[1])
 
     def test_successful_search_retry_still_invokes_specialist_for_selection(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         task=ConversationTask(kind='product_search',retry_failed=True)
         evidence=[AIMessage(content='',tool_calls=[{'name':'search_products','args':{},'id':'retry'}]),
                   ToolMessage(name='search_products',tool_call_id='retry',content=json.dumps(

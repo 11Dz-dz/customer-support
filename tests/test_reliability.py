@@ -10,15 +10,15 @@ from unittest.mock import patch
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
 
-from answer_contract import render_business_result, parse_answer_plan
-from context_budget import (ContextBudgetError, compact_task_record, compact_tool_message,
+from backend.agent.answer_contract import render_business_result, parse_answer_plan
+from backend.agent.context_budget import (ContextBudgetError, compact_task_record, compact_tool_message,
                             expert_context, message_chars, router_context)
-from task_execution import execute_read_task, seed_product_search
-from task_operations import retry_operations
-from task_result import collect_task_result, TaskResult, ToolEvidence
-from task_scheduler import PlanConflict, prepare_plan, resolve_dependencies
-from task_state import (ConversationTask, OperationRecord, PlannedTask, TaskParameters, TaskPlan, complete_task)
-from tool_execution import TurnPolicy, guarded_prompt, guarded_tool_call, tool_execution_scope
+from backend.tasks.task_execution import execute_read_task, seed_product_search
+from backend.tasks.task_operations import retry_operations
+from backend.tasks.task_result import collect_task_result, TaskResult, ToolEvidence
+from backend.tasks.task_scheduler import PlanConflict, prepare_plan, resolve_dependencies
+from backend.tasks.task_state import (ConversationTask, OperationRecord, PlannedTask, TaskParameters, TaskPlan, complete_task)
+from backend.agent.tool_execution import TurnPolicy, guarded_prompt, guarded_tool_call, tool_execution_scope
 
 
 def batch(rows):
@@ -38,19 +38,19 @@ def partial_order():
 
 class PresentationConsistencyTest(unittest.TestCase):
     def test_presentation_units_normalize_separately_from_budget_and_purchase_amount(self):
-        from task_state import explicit_product_count
+        from backend.tasks.task_state import explicit_product_count
         for query,count in [('推荐一款自行车',1),('预算100以内，挑选两款',2),('展示12个候选',12),
                             ('推荐二十款，随后按每款3件计算',20),('找一款2件装商品',1),
                             ('价格6以内，有两个轮子的车',None),('每款买3件，预算2000',None),
                             ('一款或两款均可',None),('适合两种道路条件的自行车',None)]:
             with self.subTest(query=query):self.assertEqual(explicit_product_count(query),count)
-        from langgraph_supervisor_1 import validate_planner_counts
+        from backend.agent.langgraph_supervisor_1 import validate_planner_counts
         plan=TaskPlan(tasks=[PlannedTask(next='sales',task_type='product_search',query='推荐一款车',
             parameters=TaskParameters(limit=5,product_category='all'))])
         self.assertEqual(validate_planner_counts(plan).tasks[0].parameters.limit,1)
 
     def test_fenced_selection_survives_limit_and_renderer(self):
-        from langgraph_supervisor_1 import limit_product_plan
+        from backend.agent.langgraph_supervisor_1 import limit_product_plan
         result=TaskResult(current=[ToolEvidence(tool='search_products',data={'success':True,'products':[
             {'product_id':1,'name':'Accessory','list_price':10},
             {'product_id':2,'name':'Bicycle','list_price':100}]})])
@@ -65,7 +65,7 @@ class PresentationConsistencyTest(unittest.TestCase):
 
     def test_candidate_pool_is_independent_of_display_limit(self):
         task=ConversationTask(kind='product_search',agent='sales',parameters=TaskParameters(limit=1))
-        with patch('task_execution.execute_operations') as execute:
+        with patch('backend.tasks.task_execution.execute_operations') as execute:
             seed_product_search(task,'recommend',{}, {})
         operations=execute.call_args.args[1]
         self.assertEqual(operations[0][1]['limit'],20)
@@ -218,7 +218,7 @@ class PartialResultTest(unittest.TestCase):
         self.assertNotEqual(ids[0],old.task_id)
 
     def test_generic_followup_does_not_inherit_permission_to_submit_a_refund(self):
-        from task_state import RouteDecision,prepare_task
+        from backend.tasks.task_state import RouteDecision,prepare_task
         old=ConversationTask(kind='refund_request',agent='billing',status='completed',parameters=TaskParameters(order_id=43659))
         next_task=prepare_task(RouteDecision(next='billing',task_type='general',continuation=True),old.model_dump())
         self.assertEqual(next_task.kind,'general')
@@ -318,8 +318,8 @@ class ContextTest(unittest.TestCase):
 
 class ReliabilityGraphTest(unittest.TestCase):
     def test_missing_search_presentation_count_is_repaired_before_execution(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         from langchain_core.exceptions import OutputParserException
         missing=TaskPlan(tasks=[PlannedTask(next='sales',task_type='product_search',query='recommend')])
@@ -329,7 +329,7 @@ class ReliabilityGraphTest(unittest.TestCase):
         self.assertIs(project.validate_planner_counts(valid),valid)
         class Expert:
             def invoke(self,state,config):
-                from tool_result import normalize_result
+                from backend.agent.tool_result import normalize_result
                 tool=next(m for m in reversed(state['messages']) if isinstance(m,ToolMessage))
                 pid=normalize_result(tool.content,tool.name).data['products'][0]['product_id']
                 return {'messages':state['messages']+[AIMessage(content=json.dumps({'focus':['products'],'product_ids':[pid]}))]}
@@ -342,8 +342,8 @@ class ReliabilityGraphTest(unittest.TestCase):
             self.assertEqual(sum(m.type=='tool' for m in result['messages']),1)
 
     def test_retry_in_a_new_process_reads_the_persisted_operation_ledger(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('owner') as f,patch.object(project,'supervisor_router') as router:
             def fail_once(**kw):raise TimeoutError('temporary payment failure')
@@ -355,9 +355,9 @@ class ReliabilityGraphTest(unittest.TestCase):
             code="""
 import json,sys
 from unittest.mock import patch
-import langgraph_supervisor_1 as project
-from task_state import TaskPlan,PlannedTask
-from chat_runtime import invoke_turn
+import backend.agent.langgraph_supervisor_1 as project
+from backend.tasks.task_state import TaskPlan,PlannedTask
+from backend.conversation.chat_runtime import invoke_turn
 tid=sys.argv[1]
 before=project.app.get_state({'configurable':{'thread_id':tid}}).values
 old=before['task']
@@ -372,10 +372,10 @@ print(json.dumps({'status':after['task']['status'],'tools':[m.name for m in afte
             self.assertEqual(restored,{'status':'completed','tools':['check_payment_status'],'operations':3})
 
     def test_partial_read_retry_and_operation_state_survive_checkpoint(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
-        from conversation_persistence import get_checkpointer
+        from backend.conversation.conversation_persistence import get_checkpointer
         with CaseFixture('owner') as f,patch.object(project,'supervisor_router') as router:
             actual=project.order_service.get_payment
             count=0
@@ -401,8 +401,8 @@ print(json.dumps({'status':after['task']['status'],'tools':[m.name for m in afte
             self.assertTrue(all(o['status']=='succeeded' for o in saved.checkpoint['channel_values']['task']['operations']))
 
     def test_bounded_expert_input_does_not_trim_persisted_public_history(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         captured=[]
         class CaptureExpert:
@@ -427,7 +427,7 @@ print(json.dumps({'status':after['task']['status'],'tools':[m.name for m in afte
 
 class CategoryMetadataTest(unittest.TestCase):
     def test_both_retrieval_sources_respect_catalog_category_and_price(self):
-        from adventureworks_service import AdventureWorksService
+        from backend.orders.adventureworks_service import AdventureWorksService
         service=AdventureWorksService()
         result=service.search_products('适合周末骑行的自行车整车',product_category='bicycles')
         self.assertTrue(result['success'])
@@ -440,7 +440,7 @@ class CategoryMetadataTest(unittest.TestCase):
         self.assertFalse(service.search_products('bike',product_category="bicycles OR true")['success'])
 
     def test_wrong_category_selection_cannot_leak_to_display_or_task_references(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         rows=[{'product_id':1,'name':'Accessory','product_subcategory_id':10,'list_price':10},
               {'product_id':2,'name':'Bicycle','product_subcategory_id':2,'list_price':100}]
         task=ConversationTask(kind='product_search',agent='sales',parameters=TaskParameters(limit=1,product_category='bicycles'))

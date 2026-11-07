@@ -21,9 +21,10 @@ def percentile(values, p):
 
 
 def manifest(cases, source):
-    from embedding_client import EmbeddingSettings
-    from postgres_config import PROJECT_DIR
-    files = sorted(list(PROJECT_DIR.glob("*.py")) + list(ROOT.glob("*.py")))
+    from backend.catalog.embedding_client import EmbeddingSettings
+    from backend.agent.deepseek_model import provider_settings
+    from backend.postgres_config import PROJECT_DIR
+    files = sorted(list(PROJECT_DIR.glob("backend/**/*.py")) + list(ROOT.glob("*.py")))
     hashes = {str(p.relative_to(PROJECT_DIR)): digest(p) for p in files}
     code_hash = hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
     versions = {}
@@ -36,7 +37,7 @@ def manifest(cases, source):
             "dataset_sha256": digest(ROOT / "cases.jsonl"), "gold_sha256": digest(ROOT / "retrieval_gold.json"),
             "selected_ids": [c["id"] for c in cases], "code_sha256": code_hash, "code_files": hashes,
             "source_fingerprint": source, "dependencies": versions,
-            "model": {**__import__("deepseek_model").provider_settings(),"name": __import__("deepseek_model").provider_settings()["model"],
+            "model": {**provider_settings(),"name": provider_settings()["model"],
                       "router_temperature": 0.0, "specialist_temperature": 0.2},
             "embedding": EmbeddingSettings.from_env().public_configuration(),
             "measurement_notes": ["同一进程串行评测；首次检索可能包含模型冷启动。",

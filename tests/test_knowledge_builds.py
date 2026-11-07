@@ -8,10 +8,10 @@ from uuid import uuid4
 import os
 import unittest
 
-import build_product_knowledge as builder
-import product_knowledge as knowledge
-from embedding_client import EmbeddingError
-from postgres_config import connect_database
+import scripts.build_product_knowledge as builder
+import backend.catalog.product_knowledge as knowledge
+from backend.catalog.embedding_client import EmbeddingError
+from backend.postgres_config import connect_database
 
 
 class KnowledgeBuildTest(unittest.TestCase):
@@ -21,10 +21,11 @@ class KnowledgeBuildTest(unittest.TestCase):
         self.addCleanup(self.stack.close)
         self.folder=self.stack.enter_context(TemporaryDirectory())
         root=Path(__file__).resolve().parents[1]
-        self.ddl=(root/'schema_product_knowledge.sql').read_text(encoding='utf-8').replace('customer_service',self.schema)
-        Path(self.folder,'schema_product_knowledge.sql').write_text(self.ddl,encoding='utf-8')
+        self.ddl=(root/'database/schema_product_knowledge.sql').read_text(encoding='utf-8').replace('customer_service',self.schema)
+        Path(self.folder,'database').mkdir()
+        Path(self.folder,'database/schema_product_knowledge.sql').write_text(self.ddl,encoding='utf-8')
         with connect_database() as conn:
-            conn.execute((root/'schema_postgres.sql').read_text(encoding='utf-8').replace('customer_service',self.schema))
+            conn.execute((root/'database/schema_postgres.sql').read_text(encoding='utf-8').replace('customer_service',self.schema))
         self.addCleanup(self.cleanup_schema)
         self.stack.enter_context(patch.object(builder,'PROJECT_DIR',Path(self.folder)))
         self.stack.enter_context(patch.object(builder,'connect_database',self.connect))

@@ -2,9 +2,9 @@
 from decimal import Decimal
 import unittest
 
-from postgres_config import connect_database
-from adventureworks_service import AdventureWorksService
-from retrieval_pipeline import lexical_expression
+from backend.postgres_config import connect_database
+from backend.orders.adventureworks_service import AdventureWorksService
+from backend.catalog.retrieval_pipeline import lexical_expression
 
 
 class RetrievalPipelineDatabaseTests(unittest.TestCase):

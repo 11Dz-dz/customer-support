@@ -7,11 +7,11 @@ from unittest.mock import patch
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.tools import tool
 
-from answer_contract import build_business_answer
-from task_execution import execute_read_task, read_operations, seed_product_search
-from task_result import collect_task_result
-from task_state import ConversationTask, RouteDecision, TaskParameters, complete_task, prepare_task
-from tool_execution import TurnPolicy, guarded_tool_call, tool_execution_scope
+from backend.agent.answer_contract import build_business_answer
+from backend.tasks.task_execution import execute_read_task, read_operations, seed_product_search
+from backend.tasks.task_result import collect_task_result
+from backend.tasks.task_state import ConversationTask, RouteDecision, TaskParameters, complete_task, prepare_task
+from backend.agent.tool_execution import TurnPolicy, guarded_tool_call, tool_execution_scope
 
 
 class TaskStateTest(unittest.TestCase):
@@ -143,8 +143,8 @@ class TaskExecutionTest(unittest.TestCase):
 
 class TaskGraphTest(unittest.TestCase):
     def test_empty_expert_reply_does_not_turn_unselected_candidates_into_recommendations(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         from langchain_core.messages import AIMessage
         class EmptyExpert:
@@ -160,9 +160,9 @@ class TaskGraphTest(unittest.TestCase):
             self.assertEqual(result['task_result']['status'], 'empty')
 
     def test_real_graph_multiturn_task_switch_cancel_and_checkpoint(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
-        from conversation_persistence import get_checkpointer
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
+        from backend.conversation.conversation_persistence import get_checkpointer
         from evals.fixtures import CaseFixture
         decisions = [
             RouteDecision(next='sales', task_type='product_detail', parameters=TaskParameters(product_ids=[915])),
@@ -193,8 +193,8 @@ class TaskGraphTest(unittest.TestCase):
             self.assertEqual(missing['pending_messages'], [])
 
     def test_guest_direct_order_execution_still_enforces_identity(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('guest') as fixture, patch.object(project, 'supervisor_router') as router:
             router.invoke.return_value = RouteDecision(next='billing', task_type='order_query',

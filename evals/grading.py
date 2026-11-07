@@ -2,7 +2,7 @@
 from decimal import Decimal
 import re
 
-from postgres_config import connect_database
+from backend.postgres_config import connect_database
 
 
 def numbers(text):

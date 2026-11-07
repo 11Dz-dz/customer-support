@@ -2,9 +2,9 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from task_state import TaskPlan, PlannedTask, PlannerParameters, presentation_count_matches
-from task_scheduler import prepare_plan
-from constraint_updates import ConstraintConflict, may_repair_proposal
+from backend.tasks.task_state import TaskPlan, PlannedTask, PlannerParameters, presentation_count_matches
+from backend.tasks.task_scheduler import prepare_plan
+from backend.tasks.constraint_updates import ConstraintConflict, may_repair_proposal
 
 
 class PlannerDiagnosticsTests(unittest.TestCase):
@@ -51,16 +51,16 @@ class PlannerDiagnosticsTests(unittest.TestCase):
         self.assertIsNotNone(rows[0]['conversion_reason'])
 
     def test_m09_bad_candidate_gets_one_repair_and_logs_both_plans(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         from langchain_core.messages import HumanMessage
-        from chat_runtime import turn_config
+        from backend.conversation.chat_runtime import turn_config
         query = '现在换个问题，商品776的目录标价是多少？'
         bad = TaskPlan(tasks=[PlannedTask(next='sales', task_type='product_search',
             query=query, parameters=PlannerParameters(limit=1, product_category='all'))])
         good = TaskPlan(tasks=[PlannedTask(next='sales', task_type='product_detail',
             query=query, parameters=PlannerParameters(product_ids=[776]))])
         with patch.object(project, 'invoke_model', side_effect=[bad, good]) as invoke, \
-                patch('chat_events.emit_planner_diagnostic') as diagnostic:
+                patch('backend.observability.chat_events.emit_planner_diagnostic') as diagnostic:
             result = project.supervisor_node({'messages': [HumanMessage(content=query)], 'tasks': []},
                                              turn_config('diagnostic-' + uuid4().hex))
         self.assertEqual(invoke.call_count, 2)
@@ -71,9 +71,9 @@ class PlannerDiagnosticsTests(unittest.TestCase):
         self.assertTrue(diagnostic.call_args_list[2].kwargs['repair_attempted'])
 
     def test_private_logs_redact_secrets_without_streaming(self):
-        from chat_events import emit_planner_diagnostic
-        with patch('chat_events._logger.info') as log, \
-                patch('langsmith_tracing.record_trace_event') as trace, \
+        from backend.observability.chat_events import emit_planner_diagnostic
+        with patch('backend.observability.chat_events._logger.info') as log, \
+                patch('backend.observability.langsmith_tracing.record_trace_event') as trace, \
                 patch('langgraph.config.get_stream_writer') as stream:
             emit_planner_diagnostic(stage='candidate_rejected', candidate={'api_key': 'secret'})
         self.assertNotIn('secret', log.call_args.args[0])

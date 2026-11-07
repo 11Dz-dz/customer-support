@@ -26,7 +26,7 @@ def checks(spec,result):return {c['name']:c['passed'] for c in score_broad(spec,
 class BroadEvaluationTests(unittest.TestCase):
     @unittest.skipUnless(importlib.util.find_spec('langchain_core'),'Server runtime SDK required')
     def test_named_fault_stub_reaches_the_real_exception_boundary(self):
-        from business_tools import _business_tool
+        from backend.agent.business_tools import _business_tool
         calls=[]
         def fail_once(**kw):
             calls.append(kw)
@@ -65,7 +65,7 @@ class BroadEvaluationTests(unittest.TestCase):
         self.assertFalse(checks(spec,row)['broad_quote_total_matches_sql'])
 
     def test_scope_refusal_with_a_tool_execution_does_not_pass(self):
-        from conversation_replies import REPLIES
+        from backend.conversation.conversation_replies import REPLIES
         spec=turn('code','refuse',scope_refusal=True,no_tools=True)
         row=trace(REPLIES['out_of_scope'],[{'name':'query_products','success':True,'result':{}}])
         self.assertFalse(checks(spec,row)['broad_no_tools'])

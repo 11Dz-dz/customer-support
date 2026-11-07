@@ -51,7 +51,7 @@ TURN_REFERENCES={
 
 def review_intermediate_turns(report):
     """Offline SQL review of recorded answers; never executes the agent or tools."""
-    from postgres_config import connect_database
+    from backend.postgres_config import connect_database
     reviewed=[]
     with connect_database() as c:
         for row in report['results']:
@@ -76,19 +76,19 @@ def main():
         with target.open('x',encoding='utf-8') as f:json.dump(review,f,ensure_ascii=False,indent=2)
         print(json.dumps(review,ensure_ascii=False));return 0 if review['passed'] else 1
     if not args.live:print('No model calls; explicit --live required.');return 0
-    import langgraph_supervisor_1 as project
-    from chat_runtime import stream_turn
-    from chat_events import configure_event_log
+    import backend.agent.langgraph_supervisor_1 as project
+    from backend.conversation.chat_runtime import stream_turn
+    from backend.observability.chat_events import configure_event_log
     from evals.fixtures import CaseFixture,source_fingerprint
     from evals.observer import EvaluationObserver
-    from postgres_config import connect_database
+    from backend.postgres_config import connect_database
     batch=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid4().hex[:8]
     root=Path(__file__).resolve().parents[1];directory=root/'evals/reports_catalog_query'/batch;directory.mkdir(parents=True)
     configure_event_log(directory/'events.jsonl')
     cases=DEV if args.phase=='dev' else ACCEPTANCE
     if args.ids:cases=[c for c in cases if c[0] in args.ids.split(',')]
     report={'batch':batch,'phase':args.phase,'source_before':source_fingerprint(),'results':[],
-        'code_files':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*root.glob('*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json')]},
+        'code_files':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*root.glob('backend/**/*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json')]},
         'limits':['Authored functional and SQL matrix, not independent human acceptance','No semantic quality judge or load test','Raw failures retained; no rerun without a documented change']}
     def save():(directory/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2,default=str),encoding='utf-8')
     print('REPORT_DIR',directory,flush=True);save()

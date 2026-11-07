@@ -7,12 +7,12 @@ from unittest.mock import patch
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from pydantic import ValidationError
 
-from tool_result import (ToolResult,business_payload,exception_result,failure,normalize_result,
+from backend.agent.tool_result import (ToolResult,business_payload,exception_result,failure,normalize_result,
                          result_boundary,validate_business_data)
-from task_result import collect_task_result
-from task_state import ConversationTask,TaskParameters,complete_task
-from task_operations import retry_operations
-from answer_contract import render_business_result
+from backend.tasks.task_result import collect_task_result
+from backend.tasks.task_state import ConversationTask,TaskParameters,complete_task
+from backend.tasks.task_operations import retry_operations
+from backend.agent.answer_contract import render_business_result
 
 
 def result_messages(name,result):
@@ -93,8 +93,8 @@ class ToolContractTest(unittest.TestCase):
         original=m.content
         result=collect_task_result([HumanMessage(content='order'),m])
         self.assertEqual(result.current[0].data['status'],'已发货');self.assertEqual(m.content,original)
-        from evaluate_customer_queries import tool_results
-        from evaluate_session_identity import results
+        from evals.legacy.evaluate_customer_queries import tool_results
+        from evals.legacy.evaluate_session_identity import results
         envelope=normalize_result(m.content,'query_order')
         new=ToolMessage(name='query_order',tool_call_id='new',content=envelope.model_dump_json())
         a=tool_results([m,new]);b=results([m,new])
@@ -112,7 +112,7 @@ class ToolContractTest(unittest.TestCase):
 
     def test_agent_cannot_submit_any_refund_even_with_refund_intent(self):
         from langchain_core.tools import tool
-        from tool_execution import TurnPolicy,tool_execution_scope,guarded_tool_call
+        from backend.agent.tool_execution import TurnPolicy,tool_execution_scope,guarded_tool_call
         @tool
         def request_refund(order_id:str)->dict:
             """Test application, no database write."""
@@ -144,7 +144,7 @@ class ToolContractTest(unittest.TestCase):
         self.assertEqual(r.status,'success');self.assertEqual(r.data['status'],'degraded')
 
     def test_production_tools_return_the_same_versioned_shape(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         for code in ['500','HTTP 500','http:500',' 500 ']:
             r=ToolResult.model_validate(project.search_error_code.invoke({'error_code':code}))
             self.assertEqual(r.status,'success');self.assertIn('内部服务器错误',r.data['text'])

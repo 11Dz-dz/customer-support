@@ -14,15 +14,15 @@ from uuid import uuid4
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
-from conversation_persistence import get_checkpointer
-from postgres_config import connect_database
-from request_deadline import (deadline_scope, invoke_model, check_deadline, RequestDeadlineExceeded,
+from backend.conversation.conversation_persistence import get_checkpointer
+from backend.postgres_config import connect_database
+from backend.agent.request_deadline import (deadline_scope, invoke_model, check_deadline, RequestDeadlineExceeded,
                               ModelCallTimeout, timeout_setting)
-from task_evidence import TaskEvidenceRecorder
-from task_state import ConversationTask, OperationRecord, TaskPlan, PlannedTask
-from human_handoff import (create_handoff, session_handoffs, escalation_reason, ensure_handoff_schema,
+from backend.tasks.task_evidence import TaskEvidenceRecorder
+from backend.tasks.task_state import ConversationTask, OperationRecord, TaskPlan, PlannedTask
+from backend.conversation.human_handoff import (create_handoff, session_handoffs, escalation_reason, ensure_handoff_schema,
                            admin_transition, admin_show)
-from tool_result import failure, exception_result
+from backend.agent.tool_result import failure, exception_result
 
 
 class DeadlineTest(unittest.TestCase):
@@ -224,7 +224,7 @@ class HandoffTest(unittest.TestCase):
         config, state = self.session()
         ticket = create_handoff(config, state, ConversationTask(kind='human_handoff'), 'user_requested')
         script = """import json,sys
-from human_handoff import session_handoffs
+from backend.conversation.human_handoff import session_handoffs
 print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
  {'identity_version':1,'identity_customer_id':None,'messages':[]}),default=str))
 """
@@ -234,8 +234,8 @@ print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
         self.assertEqual(json.loads(result.stdout)[0]['ticket_id'], ticket['ticket_id'])
 
     def test_blocked_retry_cannot_erase_an_uncertain_submission(self):
-        from task_operations import update_operations
-        from task_result import ToolEvidence
+        from backend.tasks.task_operations import update_operations
+        from backend.tasks.task_result import ToolEvidence
         args = {'order_id':'1','reason':'test'}
         first = failure('DATABASE_TIMEOUT').model_copy(update={'retryable':False})
         blocked = failure('WRITE_RETRY_NOT_ALLOWED')
@@ -253,8 +253,8 @@ print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
         self.assertIsNone(escalation_reason(task.model_copy(update={'operations':not_started})))
 
     def test_commands_work_with_model_unavailable_and_do_not_submit_refund(self):
-        import langgraph_supervisor_1 as module
-        from chat_runtime import invoke_turn, final_reply
+        import backend.agent.langgraph_supervisor_1 as module
+        from backend.conversation.chat_runtime import invoke_turn, final_reply
         config, state = self.session()
         thread_id = config['configurable']['thread_id']
         with patch.object(module, 'supervisor_router', SimpleNamespace(invoke=lambda *_: self.fail('model used'))), \
@@ -267,8 +267,8 @@ print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
         self.assertEqual(len(session_handoffs(config, state)), 1)
 
     def test_ticket_failure_is_not_reported_as_a_success(self):
-        import langgraph_supervisor_1 as module
-        from chat_runtime import invoke_turn, final_reply
+        import backend.agent.langgraph_supervisor_1 as module
+        from backend.conversation.chat_runtime import invoke_turn, final_reply
         config, state = self.session()
         with patch.object(module, 'create_handoff', side_effect=ConnectionError('PRIVATE_CONN_MARKER')):
             result = invoke_turn(module.app, '/human', config['configurable']['thread_id'])
@@ -278,10 +278,10 @@ print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
         self.assertNotIn('工单编号：H-', final_reply(result['messages']).content)
 
     def test_tool_result_survives_expert_timeout_and_is_checkpointed(self):
-        import langgraph_supervisor_1 as module
-        from chat_runtime import invoke_turn, final_reply
+        import backend.agent.langgraph_supervisor_1 as module
+        from backend.conversation.chat_runtime import invoke_turn, final_reply
         from evals.fixtures import CaseFixture
-        from request_deadline import ModelCallTimeout
+        from backend.agent.request_deadline import ModelCallTimeout
         with CaseFixture('owner') as fixture:
             self.threads.append(fixture.thread_id)
             plan = TaskPlan(tasks=[PlannedTask(next='billing', task_type='general', query='查询订单')])
@@ -300,8 +300,8 @@ print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
                                 for m in result['messages']))
 
     def test_refund_intent_guides_to_order_page_without_write_or_handoff(self):
-        import langgraph_supervisor_1 as module
-        from chat_runtime import invoke_turn, final_reply
+        import backend.agent.langgraph_supervisor_1 as module
+        from backend.conversation.chat_runtime import invoke_turn, final_reply
         from evals.fixtures import CaseFixture
         with CaseFixture('owner') as fixture:
             self.threads.append(fixture.thread_id)
@@ -325,8 +325,8 @@ print(json.dumps(session_handoffs({'configurable':{'thread_id':sys.argv[1]}},
             self.assertEqual([r['reason'] for r in rows], [])
 
     def test_expired_plan_does_not_start_any_business_operation(self):
-        import langgraph_supervisor_1 as module
-        from chat_runtime import final_reply
+        import backend.agent.langgraph_supervisor_1 as module
+        from backend.conversation.chat_runtime import final_reply
         config, state = self.session()
         config['metadata'] = {'request_deadline_monotonic': time.monotonic() - 1}
         with patch.object(module.order_service, 'get_order', side_effect=AssertionError('late business call')):

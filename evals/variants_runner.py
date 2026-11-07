@@ -10,23 +10,23 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--live',action='store_true');parser.add_argument('--snapshot',type=Path);args=parser.parse_args()
     if not args.live:print('No model calls. Eleven variant, budget, context, quote and scope scenarios.');return 0
     if not args.snapshot:parser.error('--snapshot required')
-    import langgraph_supervisor_1 as project
+    import backend.agent.langgraph_supervisor_1 as project
     from langchain_core.messages import messages_from_dict,AIMessage
-    from session_identity import identity_guard_node
-    from task_state import ConversationTask
-    from chat_runtime import stream_turn
-    from chat_events import configure_event_log
+    from backend.conversation.session_identity import identity_guard_node
+    from backend.tasks.task_state import ConversationTask
+    from backend.conversation.chat_runtime import stream_turn
+    from backend.observability.chat_events import configure_event_log
     from evals.fixtures import CaseFixture,source_fingerprint
     from evals.observer import EvaluationObserver
     from evals.relative_price_runner import reference_question
-    from conversation_replies import REPLIES
-    from postgres_config import connect_database
+    from backend.conversation.conversation_replies import REPLIES
+    from backend.postgres_config import connect_database
     root=Path(__file__).resolve().parents[1];batch=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid4().hex[:8]
     directory=root/'evals/reports_variants'/batch;directory.mkdir(parents=True);directory.chmod(0o700)
     configure_event_log(directory/'events.jsonl');snapshots=json.loads(args.snapshot.read_text(encoding='utf-8'))
     report={'batch':batch,'results':[],'source_before':source_fingerprint(),
         'snapshot_sha256':hashlib.sha256(args.snapshot.read_bytes()).hexdigest(),
-        'code_files':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*root.glob('*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json')]},
+        'code_files':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*root.glob('backend/**/*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json')]},
         'limits':['Authored regressions, not unseen holdout','No semantic recommendation judge or pressure acceptance','Original user thread is never invoked','No repeat to select green answers']}
     def save():(directory/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2,default=str),encoding='utf-8')
     def seed(fixture,key='shown',ambiguous=False):
@@ -98,7 +98,7 @@ def main():
     finally:
         report['source_after']=source_fingerprint();report['source_unchanged']=report['source_before']==report['source_after']
         report['passed']=len(report['results'])==11 and all(r['passed'] for r in report['results']) and report['source_unchanged'];save()
-        from langsmith_tracing import flush_traces
+        from backend.observability.langsmith_tracing import flush_traces
         flush_traces()
     print(json.dumps({'passed':report['passed'],'scenarios':len(report['results'])}),flush=True)
     return 0 if report['passed'] else 1

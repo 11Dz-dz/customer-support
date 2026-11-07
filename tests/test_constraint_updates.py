@@ -2,10 +2,10 @@
 import os
 import unittest
 from unittest.mock import patch
-from task_state import ConversationTask,PlannedTask,TaskParameters,TaskPlan,FieldUpdate,prepare_task
-from task_scheduler import prepare_plan
-from constraint_updates import ConstraintConflict,recognized
-from deepseek_model import provider_settings,provider_body
+from backend.tasks.task_state import ConversationTask,PlannedTask,TaskParameters,TaskPlan,FieldUpdate,RouteDecision,prepare_task
+from backend.tasks.task_scheduler import prepare_plan
+from backend.tasks.constraint_updates import ConstraintConflict,recognized
+from backend.agent.deepseek_model import provider_settings,provider_body
 
 
 def update(field,value,text,index=0,operation='set'):
@@ -102,7 +102,7 @@ class ConstraintUpdateTest(unittest.TestCase):
 
     def test_long_provenance_does_not_duplicate_raw_messages_into_router_context(self):
         import json
-        from context_budget import compact_task_record
+        from backend.agent.context_budget import compact_task_record
         task=old_task();text='private-source-'*1500
         task.parameter_sources={key:{'source_text':text,'source_message_text':text,'source_index':0,'operation':'set','revision':1} for key in ['color','size','max_price','product_category']}
         before=task.model_dump();view=compact_task_record(task)
@@ -184,7 +184,7 @@ class ConstraintUpdateTest(unittest.TestCase):
 
     def test_defaults_do_not_reset_include_variants_directly(self):
         old=old_task(include_variants=True)
-        new=prepare_task(__import__('task_state').RouteDecision(next='sales',task_type='product_search',continuation=True,
+        new=prepare_task(RouteDecision(next='sales',task_type='product_search',continuation=True,
             parameters=TaskParameters(max_price=500)),old.model_dump())
         self.assertTrue(new.parameters.include_variants)
 
@@ -272,7 +272,7 @@ class ConstraintUpdateTest(unittest.TestCase):
 
     def test_atomic_top_level_clarification_preserves_previous_state(self):
         old=old_task()
-        from task_scheduler import PlanConflict
+        from backend.tasks.task_scheduler import PlanConflict
         with self.assertRaises(PlanConflict):prepare_plan(TaskPlan(tasks=[PlannedTask(next='sales',task_type='general')],clarification='要换哪种商品？'),
             {'tasks':[old.model_dump()]},'换一种',original_inputs=['换一种'])
 
@@ -301,8 +301,8 @@ if __name__=='__main__':unittest.main()
 
 class FacetDatabaseTest(unittest.TestCase):
     def test_both_retrieval_paths_keep_exact_color_and_size(self):
-        from adventureworks_service import AdventureWorksService
-        from postgres_config import connect_database
+        from backend.orders.adventureworks_service import AdventureWorksService
+        from backend.postgres_config import connect_database
         result=AdventureWorksService().search_products('mountain bike',product_category='bicycles',max_price=3000,color='Black',size='42')
         self.assertTrue(result.get('success'))
         with connect_database() as c:
@@ -312,18 +312,18 @@ class FacetDatabaseTest(unittest.TestCase):
         self.assertTrue(all(p['product_id'] in allowed for p in result['products']))
 
     def test_empty_scope_uses_size_not_just_category_price(self):
-        from adventureworks_service import AdventureWorksService
+        from backend.orders.adventureworks_service import AdventureWorksService
         result=AdventureWorksService().catalog_scope_summary(max_price=3000,product_category='bicycles',size='99')
         self.assertEqual(result['matched_count'],0);self.assertEqual(result['size'],'99')
 
     def test_exact_catalog_query_has_the_same_category_constraint(self):
-        from adventureworks_service import AdventureWorksService
+        from backend.orders.adventureworks_service import AdventureWorksService
         result=AdventureWorksService().query_products(product_category='accessories',max_price=100,limit=5)
         self.assertTrue(result['products'])
         self.assertTrue(all(p['product_subcategory_id'] in range(26,38) for p in result['products']))
 
     def test_reused_candidates_cannot_ignore_new_facets(self):
-        from retrieval_pipeline import candidate_pool
+        from backend.catalog.retrieval_pipeline import candidate_pool
         task=old_task(color='Black',size='42')
         data={'success':True,'products':[{'product_id':1,'list_price':700,'color':'Black','size':'42','product_subcategory_id':1},
             {'product_id':2,'list_price':600,'color':'Red','size':'42','product_subcategory_id':1},
@@ -337,7 +337,7 @@ class TaskToolFilterTest(unittest.TestCase):
         from types import SimpleNamespace
         from langchain_core.tools import tool
         from langchain_core.messages import ToolMessage
-        from tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
+        from backend.agent.tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
         @tool
         def search_products(query:str,max_price:float|None=None,product_category:str|None=None,color:str|None=None,size:str|None=None)->dict:
             """Fake search, no network or DB."""
@@ -356,7 +356,7 @@ class TaskToolFilterTest(unittest.TestCase):
         from types import SimpleNamespace
         from langchain_core.tools import tool
         from langchain_core.messages import ToolMessage
-        from tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
+        from backend.agent.tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
         import json
         @tool
         def search_products(query:str,max_price:float|None=None,product_category:str|None=None,color:str|None=None,size:str|None=None)->dict:
@@ -381,7 +381,7 @@ class OriginalCallAuditTest(unittest.TestCase):
         from copy import deepcopy
         from langchain_core.tools import tool
         from langchain_core.messages import ToolMessage
-        from tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
+        from backend.agent.tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
         @tool
         def search_products(query:str,max_price:float|None=None,product_category:str|None=None)->dict:
             """Fake search."""
@@ -400,7 +400,7 @@ class OriginalCallAuditTest(unittest.TestCase):
         from types import SimpleNamespace
         from copy import deepcopy
         from langchain_core.tools import tool
-        from tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
+        from backend.agent.tool_execution import TurnPolicy,guarded_tool_call,tool_execution_scope
         import json
         @tool
         def search_products(query:str,max_price:float|None=None,product_category:str|None=None)->dict:
@@ -416,9 +416,9 @@ class OriginalCallAuditTest(unittest.TestCase):
 
 class BoundedPlanRepairTest(unittest.TestCase):
     def run_plan(self,responses):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         from langchain_core.messages import HumanMessage
-        from chat_runtime import turn_config
+        from backend.conversation.chat_runtime import turn_config
         from uuid import uuid4
         config=turn_config('constraint-repair-test-'+uuid4().hex)
         with patch.object(project,'invoke_model',side_effect=responses) as invoke:
@@ -453,9 +453,9 @@ class BoundedPlanRepairTest(unittest.TestCase):
         self.assertEqual(result['tasks'],[]);self.assertIn('颜色',result['plan_message'])
 
     def test_real_price_conflict_does_not_trigger_model_guessing(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         from langchain_core.messages import HumanMessage
-        from chat_runtime import turn_config
+        from backend.conversation.chat_runtime import turn_config
         from uuid import uuid4
         old=old_task(min_price=600)
         candidate=PlannedTask(next='sales',task_type='product_search',continuation=True,target_task_id=old.task_id,
@@ -467,9 +467,9 @@ class BoundedPlanRepairTest(unittest.TestCase):
 
 
     def test_unsupported_explicit_condition_is_not_dropped_by_repair(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         from langchain_core.messages import HumanMessage
-        from chat_runtime import turn_config
+        from backend.conversation.chat_runtime import turn_config
         from uuid import uuid4
         invalid=self.proposal(color='Purple')
         with patch.object(project,'invoke_model',return_value=invalid) as invoke:
@@ -495,22 +495,22 @@ class UnpublishedReplacementTest(unittest.TestCase):
         self.assertTrue(any(x['action']=='collapsed_unpublished_replacement' for x in tasks[0].parameter_changes))
 
     def test_additional_request_keeps_both_goals(self):
-        from constraint_updates import collapse_unpublished_replacement
+        from backend.tasks.constraint_updates import collapse_unpublished_replacement
         plan=self.split();out,changed=collapse_unpublished_replacement(plan,[],['推荐自行车','另外再推荐头盔'])
         self.assertFalse(changed);self.assertEqual(out.model_dump(),plan.model_dump())
 
     def test_stored_task_is_never_rebound_by_new_segment_rule(self):
-        from constraint_updates import collapse_unpublished_replacement
+        from backend.tasks.constraint_updates import collapse_unpublished_replacement
         plan=self.split();out,changed=collapse_unpublished_replacement(plan,[old_task()],['推荐一款自行车','换成头盔'])
         self.assertFalse(changed);self.assertEqual(out.model_dump(),plan.model_dump())
 
     def test_multiple_initial_objects_require_normal_scoped_planning(self):
-        from constraint_updates import collapse_unpublished_replacement
+        from backend.tasks.constraint_updates import collapse_unpublished_replacement
         out,changed=collapse_unpublished_replacement(self.split(),[],['推荐自行车和头盔','换成水壶'])
         self.assertFalse(changed);self.assertEqual(len(out.tasks),2)
 
     def test_dependency_is_not_silently_removed(self):
-        from constraint_updates import collapse_unpublished_replacement
+        from backend.tasks.constraint_updates import collapse_unpublished_replacement
         plan=self.split();plan.tasks[1].depends_on=['T1']
         out,changed=collapse_unpublished_replacement(plan,[],['推荐一款自行车','换成头盔'])
         self.assertFalse(changed);self.assertEqual(out.tasks[1].depends_on,['T1'])

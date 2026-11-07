@@ -12,8 +12,8 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode, create_react_agent
 from langgraph.graph import StateGraph, START, END
 
-from tool_execution import TurnPolicy, guarded_model, guarded_prompt, guarded_tool_call, tool_execution_scope
-from tool_result import business_payload
+from backend.agent.tool_execution import TurnPolicy, guarded_model, guarded_prompt, guarded_tool_call, tool_execution_scope
+from backend.agent.tool_result import business_payload
 
 
 class ToolState(TypedDict):

@@ -3,8 +3,8 @@ import concurrent.futures
 from decimal import Decimal
 import unittest
 
-from adventureworks_service import AdventureWorksService
-from postgres_config import connect_database
+from backend.orders.adventureworks_service import AdventureWorksService
+from backend.postgres_config import connect_database
 
 
 class ServiceIntegrationTest(unittest.TestCase):

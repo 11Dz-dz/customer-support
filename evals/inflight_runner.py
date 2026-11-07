@@ -28,11 +28,11 @@ def dump(path,value):
 def fixture(project,stream):
     from fastapi.testclient import TestClient
     from psycopg import sql
-    from postgres_config import connect_database
+    from backend.postgres_config import connect_database
     from webapp.store import WebStore
     from webapp.runtime import WebRuntime
     from webapp.api import create_app
-    from conversation_persistence import get_checkpointer
+    from backend.conversation.conversation_persistence import get_checkpointer
     schema='inflight_eval_'+uuid4().hex
     with connect_database() as c:c.execute(sql.SQL('CREATE SCHEMA {}').format(sql.Identifier(schema)))
     threads=[]
@@ -67,10 +67,10 @@ def fixture(project,stream):
 
 
 def run_case(spec,project,reference,directory):
-    from chat_runtime import stream_turn
+    from backend.conversation.chat_runtime import stream_turn
     from webapp.inbox import WebInbox
     from evals.observer import EvaluationObserver
-    from tool_result import normalize_result
+    from backend.agent.tool_result import normalize_result
     entered,release=threading.Event(),threading.Event()
     real_seed,real_poll=project.seed_product_search,WebInbox.poll
     used=False;observer=EvaluationObserver(set())
@@ -180,11 +180,11 @@ def main(argv=None):
         if ids!={c['id'] for c in selected}:parser.error('Unknown case IDs')
     if not args.live:
         print(json.dumps({'version':VERSION,'cases':selected,'api_calls':0},ensure_ascii=False));return 0
-    from postgres_config import connect_database
+    from backend.postgres_config import connect_database
     from evals.fixtures import source_fingerprint
-    from chat_events import configure_event_log
-    from langsmith_tracing import flush_traces
-    import langgraph_supervisor_1 as project
+    from backend.observability.chat_events import configure_event_log
+    from backend.observability.langsmith_tracing import flush_traces
+    import backend.agent.langgraph_supervisor_1 as project
     with connect_database() as c:
         references={b:catalog_oracle(c,b) for b in [500,1000]}
     directory=args.output_root.resolve()/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid4().hex[:8])
@@ -194,7 +194,7 @@ def main(argv=None):
             'planned_cases':len(selected),'live':True,'uses_llm_judge':False,
             'scope':'Authored functional final-answer regression, not general semantic recommendation or concurrency load acceptance',
             'code_files':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest()
-                          for p in [*root.glob('*.py'),*root.joinpath('webapp').glob('*.py'),Path(__file__),Path(__file__).with_name('inflight_answers.py')]}}
+                          for p in [*root.glob('backend/**/*.py'),*root.joinpath('webapp').glob('*.py'),Path(__file__),Path(__file__).with_name('inflight_answers.py')]}}
     dump(directory/'report.json',report);print('REPORT_DIR',directory,flush=True)
     try:
         if args.historical:

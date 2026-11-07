@@ -1,7 +1,5 @@
 # 日期、金额、退款与并列数量的受控输出
 
-项目：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
-
 ## 遇到的问题与改进方向
 
 ### 日期名称被误解释
@@ -109,20 +107,9 @@ calculate_price支持单商品与组合模式。组合参数示例：
 
 路由提示补充了购买前报价与已有订单金额的职责边界，避免上轮回答中关于税费、运费或支付的说明把选购追问带到账单节点。
 
-- `adventureworks_service.py`：日期释义、双重并列统计、退款操作标记、组合报价。
-- `answer_contract.py`：JSON展示计划、证据选择、关键事实渲染、引用校验与分段。
-- `langgraph_supervisor_1.py`：工具组合模式、业务模型草稿标签、展示计划提示及节点集成。
-- `chat_runtime.py`：已校验正文的自定义流转发。
+- `backend/orders/adventureworks_service.py`：日期释义、双重并列统计、退款操作标记、组合报价。
+- `backend/agent/answer_contract.py`：JSON展示计划、证据选择、关键事实渲染、引用校验与分段。
+- `backend/agent/langgraph_supervisor_1.py`：工具组合模式、业务模型草稿标签、展示计划提示及节点集成。
+- `backend/conversation/chat_runtime.py`：已校验正文的自定义流转发。
 - `tests/test_answer_contract.py`：错误草稿隔离、真实数据库、组合金额、退款与流式持久化检查。
 - `tests/test_session_identity.py`：保持底层错误码和身份隔离断言，改为核对用户可读的拒绝正文。
-
-原始评测报告及AI复核记录保留。
-
-
-## 验证结果
-
-最新已部署代码的核验记录为`logs/recovery_verification_20261022.json`：200项自动测试通过，112个模拟场景、157轮对话的自动检查通过。它们不是生产正确率，也不替代独立人工语义验收。最新五组报告及运行方法见[当前版本总览](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/CURRENT_PROJECT_STATUS.md)第7节和[评测说明](../evals/README.md)。这次仅整理文档，没有重新运行测试或调用模型。
-
-重点检查由tests/test_answer_contract.py、tests/test_task_pipeline.py、tests/test_multitask.py、tests/test_reliability.py与tests/test_recovery.py覆盖。金额、日期、退款、并列、错误草稿隔离、结果汇总和持久化均需结合实际证据判断，不能只检查最终文字。
-
-商品941的描述翻译冲突仍是资料质量限制；技术支持现在使用真实按需健康检查，详见[健康检查说明](REAL_MONITORING_20261020.md)。

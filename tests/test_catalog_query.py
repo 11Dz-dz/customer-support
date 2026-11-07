@@ -2,12 +2,12 @@
 import json,random,unittest
 from unittest.mock import patch
 from pydantic import ValidationError
-from catalog_query import CatalogExpression,CatalogPredicate,amend,sql,matches,effective,render_overview
-from adventureworks_service import AdventureWorksService
-from postgres_config import connect_database
-from task_state import PlannedTask,TaskPlan,TaskParameters,ConversationTask
-from task_scheduler import prepare_plan
-from constraint_updates import ConstraintConflict
+from backend.catalog.catalog_query import CatalogExpression,CatalogPredicate,amend,sql,matches,effective,render_overview
+from backend.orders.adventureworks_service import AdventureWorksService
+from backend.postgres_config import connect_database
+from backend.tasks.task_state import PlannedTask,TaskPlan,TaskParameters,ConversationTask
+from backend.tasks.task_scheduler import prepare_plan
+from backend.tasks.constraint_updates import ConstraintConflict
 
 def pred(field,operator,*values):return {'field':field,'operator':operator,'values':list(values)}
 def expr(*groups):return CatalogExpression.model_validate({'groups':[{'conditions':g} for g in groups]})
@@ -98,7 +98,7 @@ class CatalogQueryTests(unittest.TestCase):
         self.assertEqual(new.parameters.max_price,700)
 
     def test_relative_bound_intersects_every_alternative_without_widening_original_budgets(self):
-        from relative_price import apply_bound
+        from backend.catalog.relative_price import apply_bound
         old=ConversationTask(kind='product_search',parameters=TaskParameters(catalog_filter=expr(
             [pred('category','eq','bicycles'),pred('color','eq','Red'),pred('price','lte',500)],
             [pred('category','eq','bicycles'),pred('color','eq','Silver'),pred('price','lte',800)])))
@@ -151,18 +151,18 @@ class CatalogQueryTests(unittest.TestCase):
         self.assertEqual(r['retrieval_mode'],'hybrid');self.assertTrue(r['products']);self.assertTrue(all(matches(p,e) for p in r['products']))
 
     def test_full_graph_overview_skips_recommendation_agent(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         from evals.fixtures import CaseFixture
-        from chat_runtime import invoke_turn,final_reply
+        from backend.conversation.chat_runtime import invoke_turn,final_reply
         with CaseFixture('owner') as f,patch.object(project,'supervisor_router') as router,patch.object(project.order_service,'search_products',side_effect=AssertionError('No semantic search')):
             router.invoke.return_value=TaskPlan(tasks=[PlannedTask(next='sales',task_type='catalog_query',parameters=TaskParameters(operation='overview',catalog_subject='transport'),query_update={'operation':'replace','source_index':0,'source_text':'除了自行车还有什么交通工具','expression':expr([pred('category','not_in','bicycles')])})])
             result=invoke_turn(project.app,'除了自行车还有什么交通工具',f.thread_id)
             answer=final_reply(result['messages']).content;self.assertIn('未分类',answer);self.assertNotIn('推荐',answer)
 
     def test_tool_guard_rejects_dropped_negative_filter(self):
-        import langgraph_supervisor_1 as project
-        from tool_execution import TurnPolicy,tool_execution_scope
-        from test_tool_execution import ToolExecutionTest
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.agent.tool_execution import TurnPolicy,tool_execution_scope
+        from tests.test_tool_execution import ToolExecutionTest
         task=plan('不要黑色',expr([pred('color','not_in','Black')]),operation='replace')
         with tool_execution_scope(TurnPolicy(task=task)),patch.object(project.order_service,'query_products') as service:
             messages=ToolExecutionTest.run_calls([project.query_products],[('query_products',{})])

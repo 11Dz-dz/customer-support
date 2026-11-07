@@ -7,9 +7,9 @@ import unittest
 from unittest.mock import patch
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from task_state import ConversationTask, PlannedTask, TaskParameters, TaskPlan
-from task_scheduler import (PlanConflict, choose_task, prepare_plan, resolve_dependencies, scoped_history)
-from tool_execution import RequestBudget, TurnPolicy, tool_execution_scope
+from backend.tasks.task_state import ConversationTask, PlannedTask, TaskParameters, TaskPlan
+from backend.tasks.task_scheduler import (PlanConflict, choose_task, prepare_plan, resolve_dependencies, scoped_history)
+from backend.agent.tool_execution import RequestBudget, TurnPolicy, tool_execution_scope
 
 
 def item(kind, agent='sales', ref='T1', **kwargs):
@@ -103,8 +103,8 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(tasks[0].awaiting_fields,['order_id'])
 
     def test_order_display_positions_preserve_repeated_line_items(self):
-        from task_state import complete_task
-        from task_result import collect_task_result
+        from backend.tasks.task_state import complete_task
+        from backend.tasks.task_result import collect_task_result
         task=ConversationTask(kind='order_query',agent='billing')
         messages=[HumanMessage(content='订单'),ToolMessage(name='query_order',tool_call_id='q',content=json.dumps({'success':True,
             'items':[{'product_id':776},{'product_id':776},{'product_id':711}]}))]
@@ -214,8 +214,8 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(json.loads(results[0].content)['error_code'], 'REQUEST_TOOL_LIMIT')
 
     def test_invalid_expert_selection_is_not_filled_with_insertion_order_candidates(self):
-        import langgraph_supervisor_1 as project
-        from task_result import TaskResult, ToolEvidence
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.tasks.task_result import TaskResult, ToolEvidence
         task=ConversationTask(kind='product_search',parameters=TaskParameters(limit=1))
         result=TaskResult(current=[ToolEvidence(tool='search_products',data={'success':True,'products':[
             {'product_id':915,'name':'First'},{'product_id':916,'name':'Second'}]})])
@@ -226,8 +226,8 @@ class PlanTest(unittest.TestCase):
 
 class CompoundGraphTest(unittest.TestCase):
     def test_two_experts_complete_and_stream_only_one_combined_answer(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import stream_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import stream_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('owner') as f, patch.object(project, 'supervisor_router') as router:
             router.invoke.return_value = TaskPlan(tasks=[item('product_detail', parameters=TaskParameters(product_ids=[915])),
@@ -243,8 +243,8 @@ class CompoundGraphTest(unittest.TestCase):
             self.assertEqual(state['turn_budget']['tool_calls'],2)
 
     def test_missing_order_then_followup_does_not_repeat_product_lookup(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('owner') as f, patch.object(project,'supervisor_router') as router:
             router.invoke.return_value = TaskPlan(tasks=[item('product_detail', parameters=TaskParameters(product_ids=[915])),item('order_query','billing','T2')])
@@ -256,14 +256,21 @@ class CompoundGraphTest(unittest.TestCase):
             second = invoke_turn(project.app,str(f.slots['own_order']),f.thread_id)
             tools = [m.name for m in second['messages'][len(first['messages']):] if m.type=='tool']
             self.assertEqual(tools,['query_order'])
-            script = "from conversation_persistence import get_checkpointer; import json,sys; s=get_checkpointer().get_tuple({'configurable':{'thread_id':sys.argv[1]}}); print(json.dumps([t['status'] for t in s.checkpoint['channel_values']['tasks']]))"
+            script = """
+import json
+import sys
+from backend.conversation.conversation_persistence import get_checkpointer
+
+saved = get_checkpointer().get_tuple({'configurable': {'thread_id': sys.argv[1]}})
+print(json.dumps([task['status'] for task in saved.checkpoint['channel_values']['tasks']]))
+"""
             saved = subprocess.run([sys.executable,'-c',script,f.thread_id],cwd=Path(__file__).resolve().parent.parent,
                                    capture_output=True,text=True,timeout=30,check=True)
             self.assertEqual(json.loads(saved.stdout),['completed','completed'])
 
     def test_order_to_product_dependency_uses_actual_authorized_order_items(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('owner') as f, patch.object(project,'supervisor_router') as router:
             router.invoke.return_value = TaskPlan(tasks=[item('order_query','billing',parameters=TaskParameters(order_id=f.slots['own_order'])),
@@ -274,8 +281,8 @@ class CompoundGraphTest(unittest.TestCase):
             self.assertIn('商品776',result['messages'][-1].content)
 
     def test_denied_order_never_passes_product_ids_to_dependent_agent(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('owner') as f, patch.object(project,'supervisor_router') as router:
             router.invoke.return_value = TaskPlan(tasks=[item('order_query','billing',parameters=TaskParameters(order_id=f.slots['foreign_order'])),
@@ -286,8 +293,8 @@ class CompoundGraphTest(unittest.TestCase):
             self.assertNotIn('商品749',result['messages'][-1].content)
 
     def test_failed_expert_does_not_discard_independent_order_result(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('owner') as f, patch.object(project,'supervisor_router') as router, patch.object(project,'sales_agent') as sales:
             sales.invoke.side_effect=RuntimeError('PRIVATE_EXCEPTION_BODY')
@@ -298,8 +305,8 @@ class CompoundGraphTest(unittest.TestCase):
             self.assertNotIn('PRIVATE_EXCEPTION_BODY',result['messages'][-1].content)
 
     def test_two_same_domain_tasks_do_not_mix_product_results(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('guest') as f, patch.object(project,'supervisor_router') as router:
             router.invoke.return_value=TaskPlan(tasks=[item('product_detail',parameters=TaskParameters(product_ids=[915])),
@@ -311,8 +318,8 @@ class CompoundGraphTest(unittest.TestCase):
             self.assertNotIn('商品915',result['turn_outputs'][1]['content'])
 
     def test_missing_expert_final_does_not_abort_other_tasks(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         class NoFinal:
             def invoke(self, state, config):
@@ -323,8 +330,8 @@ class CompoundGraphTest(unittest.TestCase):
             self.assertEqual([t['status'] for t in result['tasks']],['failed','completed'])
 
     def test_planner_schema_retry_happens_before_any_tools(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         from langchain_core.exceptions import OutputParserException
         with CaseFixture('guest') as f, patch.object(project,'supervisor_router') as router:
@@ -334,8 +341,8 @@ class CompoundGraphTest(unittest.TestCase):
             self.assertEqual([m.name for m in result['messages'] if m.type=='tool'],['get_product_info'])
 
     def test_provider_error_preserves_existing_waiting_tasks_without_tools(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('owner') as f, patch.object(project,'supervisor_router') as router:
             router.invoke.return_value=TaskPlan(tasks=[item('order_query','billing')])
@@ -347,8 +354,8 @@ class CompoundGraphTest(unittest.TestCase):
             self.assertNotIn('PRIVATE_PROVIDER_BODY',second['messages'][-1].content)
 
     def test_four_tasks_finish_under_graph_recursion_limit(self):
-        import langgraph_supervisor_1 as project
-        from chat_runtime import invoke_turn
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.conversation.chat_runtime import invoke_turn
         from evals.fixtures import CaseFixture
         with CaseFixture('guest') as f, patch.object(project,'supervisor_router') as router:
             router.invoke.return_value=TaskPlan(tasks=[item('product_detail',ref=f'T{i}',parameters=TaskParameters(product_ids=[pid])) for i,pid in enumerate([915,916,917,918],1)])

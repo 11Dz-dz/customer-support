@@ -4,9 +4,9 @@ from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
-from conversation_persistence import get_checkpointer
-from postgres_config import connect_database
-from session_identity import bind_session_customer
+from backend.conversation.conversation_persistence import get_checkpointer
+from backend.postgres_config import connect_database
+from backend.conversation.session_identity import bind_session_customer
 
 
 class CurrentFixture:
@@ -44,12 +44,12 @@ class CurrentFixture:
                 c.execute('''CREATE TABLE refund_requests(refund_id text PRIMARY KEY,order_id integer NOT NULL REFERENCES orders,
                     reason text NOT NULL,status text NOT NULL DEFAULT 'pending',created_at timestamptz NOT NULL DEFAULT now())''')
                 c.execute('CREATE UNIQUE INDEX active_refund ON refund_requests(order_id) WHERE status IN (\'pending\',\'approved\')')
-                c.execute(Path(__file__).parents[1].joinpath('schema_refunds.sql').read_text(encoding='utf-8'))
+                c.execute(Path(__file__).parents[1].joinpath('database/schema_refunds.sql').read_text(encoding='utf-8'))
                 for slot,status in self.case.get('fixture_refunds',{}).items():
                     c.execute('INSERT INTO refund_requests(refund_id,order_id,reason,status) VALUES(%s,%s,%s,%s)',
                         ('RF-EVAL-'+slot,self.slots[slot],'评测初始化申请，聊天不得修改',status))
             # These modules hold imported connections. Patch only in this sequential evaluation process.
-            for module in ['adventureworks_service','evals.grading']:
+            for module in ['backend.orders.adventureworks_service','evals.grading']:
                 self.stack.enter_context(patch(module+'.connect_database',self.connect))
             self.customer_id=None if self.case['actor']=='guest' else (29672 if self.case['actor']=='other' else 29825)
             if self.customer_id is not None:bind_session_customer(self.thread_id,self.customer_id)

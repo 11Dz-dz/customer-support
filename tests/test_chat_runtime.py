@@ -15,9 +15,9 @@ from langchain_core.tools import tool
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
-from chat_events import ToolEventHandler, configure_event_log
-from chat_runtime import public_text, stream_turn
-from conversation_persistence import get_checkpointer, session_lock
+from backend.observability.chat_events import ToolEventHandler, configure_event_log
+from backend.conversation.chat_runtime import public_text, stream_turn
+from backend.conversation.conversation_persistence import get_checkpointer, session_lock
 
 
 class State(TypedDict):
@@ -60,7 +60,7 @@ class ChatRuntimeTest(unittest.TestCase):
                      {"configurable": {"thread_id": thread_id}})
         script = """
 import json,sys
-from conversation_persistence import get_checkpointer
+from backend.conversation.conversation_persistence import get_checkpointer
 item=get_checkpointer().get_tuple({'configurable':{'thread_id':sys.argv[1]}})
 messages=item.checkpoint['channel_values']['messages']
 print(json.dumps({'types':[m.type for m in messages], 'contents':[m.content for m in messages]}))
@@ -90,7 +90,7 @@ print(json.dumps({'types':[m.type for m in messages], 'contents':[m.content for 
         tid = self.thread_id()
         script = """
 import sys
-from conversation_persistence import session_lock,SessionBusyError
+from backend.conversation.conversation_persistence import session_lock,SessionBusyError
 try:
  with session_lock(sys.argv[1]): pass
 except SessionBusyError:
@@ -141,7 +141,7 @@ else:
             self.assertEqual([e["event"] for e in events], ["tool_start", "tool_end"])
             self.assertFalse(events[-1]["success"])
             self.assertIn("elapsed_ms", events[-1])
-            from chat_events import _logger
+            from backend.observability.chat_events import _logger
             for handler in list(_logger.handlers):
                 handler.close()
                 _logger.removeHandler(handler)

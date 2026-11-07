@@ -48,7 +48,7 @@ def load_cases(path=None):
 
 
 def prepare_gold(destination=None):
-    from postgres_config import connect_database
+    from backend.postgres_config import connect_database
     destination = Path(destination) if destination else ROOT / "retrieval_gold.json"
     with connect_database() as conn:
         rows = conn.execute("SELECT product_id,name,product_number,list_price,description_en,description_zh "
@@ -70,7 +70,7 @@ def prepare_gold(destination=None):
 def load_gold():
     path = ROOT / "retrieval_gold.json"
     if not path.exists():
-        raise ValueError("请先执行 python run_evaluation.py --prepare-gold")
+        raise ValueError("请先执行 python -m evals.run_evaluation --prepare-gold")
     gold = json.loads(path.read_text(encoding="utf-8"))
     for label in GOLD_RULES:
         if not gold["labels"].get(label, {}).get("product_ids"):

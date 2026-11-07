@@ -1,7 +1,5 @@
 # 按需真实健康检查
 
-项目：`/root/rivermind-data/Agent/example/langgraph_olist_example/`。
-
 ## 遇到的问题及改进原因
 
 ### 固定示例被说成当前监控
@@ -28,8 +26,8 @@
 
 ## 当前实现
 
-- 新增`health_monitor.py`：真实只读探测、结构化快照、健康结果展示和独立命令。
-- 修改`langgraph_supervisor_1.py`：`check_system_status`从固定字典改为真实探测；补充技术支持工具选择规则，避免解释错误码时附带检查组件；技术支持原始草稿不直接显示，健康事实依据本轮工具结果生成。
+- 新增`backend/observability/health_monitor.py`：真实只读探测、结构化快照、健康结果展示和独立命令。
+- 修改`backend/agent/langgraph_supervisor_1.py`：`check_system_status`从固定字典改为真实探测；补充技术支持工具选择规则，避免解释错误码时附带检查组件；技术支持原始草稿不直接显示，健康事实依据本轮工具结果生成。
 - 新增`test_health_monitor.py`：验证资源统计口径、只读查询、API错误与超时、密钥隔离、历史快照隔离及流式正文一致性。
 - 更新`README.md`：增加检测说明入口。
 
@@ -70,9 +68,8 @@ HTTP 200且响应结构正确时，记录配置模型是否在列表中。缺少
 不经过LLM直接检测：
 
 ```bash
-cd /root/rivermind-data/Agent/example/langgraph_olist_example
-/opt/conda/envs/agent/bin/python health_monitor.py --component all
-/opt/conda/envs/agent/bin/python health_monitor.py --component server
+python -m backend.observability.health_monitor --component all
+python -m backend.observability.health_monitor --component server
 ```
 
 独立命令返回JSON；全部healthy时退出码0，其余为1。它无需先调用聊天模型，模型服务不可用时仍可运行。API检查仍需要Key；仅检查server/database不需要模型调用。
@@ -84,9 +81,3 @@ cd /root/rivermind-data/Agent/example/langgraph_olist_example
 技术支持正文改为节点完成后分段发送；真实健康指标由程序从工具结果展示，流式正文与会话持久化正文一致，不直接展示模型草稿。只有错误码解释时，error_explanation直接映射search_error_code，collect根据工具文本展示错误码及含义，不因此运行健康探测。
 
 这是按需实时健康检查，没有后台定时采样、指标时序库、历史曲线或主动告警；不执行重启、修改配置、退款或其他修复动作。没有检查GPU、应用进程存活、业务请求成功率或端到端订单流程。
-
-## 验证结果
-
-资源口径、只读探针、HTTP错误、密钥隔离、历史快照隔离和正文一致性由tests/test_health_monitor.py等现行测试覆盖；请求期限见tests/test_recovery.py。最新版本的200项自动测试及112个模拟场景结果统一见[当前版本总览](https://github.com/11Dz-dz/customer-support/blob/767d280215a6344b00852416b9219a2ac121b958/docs/CURRENT_PROJECT_STATUS.md)第7节。
-
-本文不展示旧检测数值作为当前服务器状态。需要了解现在的CPU、内存、数据库或API连通性，应运行上面的独立命令重新检测。

@@ -13,7 +13,7 @@ from evals.reporting import compare_reports, manifest, write_json, write_report
 
 def run_turn(app, spec, fixture, history_tools):
     from langchain_core.messages import AIMessage
-    from chat_runtime import stream_turn, final_reply, public_text
+    from backend.conversation.chat_runtime import stream_turn, final_reply, public_text
     from evals.observer import EvaluationObserver
     observer = EvaluationObserver(getattr(fixture, 'writable_order_ids', fixture.order_ids))
     before = app.get_state({"configurable": {"thread_id": fixture.thread_id}}).values.get("messages", [])
@@ -83,7 +83,7 @@ def run_case(app, case, repeat, gold):
                     break
                 for rule in spec["checks"]:
                     if rule["kind"] == "retrieval":
-                        from adventureworks_service import AdventureWorksService
+                        from backend.orders.adventureworks_service import AdventureWorksService
                         probe_start = time.perf_counter()
                         probe = AdventureWorksService().search_products(trace["input"], limit=5,
                                                                         max_price=rule.get("max_price"))
@@ -170,10 +170,10 @@ def main(argv=None):
                           "ids": [c["id"] for c in selected], "api_calls": 0}, ensure_ascii=False), flush=True)
         return 0
 
-    from chat_events import configure_event_log
-    from conversation_persistence import close_persistence
+    from backend.observability.chat_events import configure_event_log
+    from backend.conversation.conversation_persistence import close_persistence
     from evals.fixtures import source_fingerprint
-    from langgraph_supervisor_1 import app
+    from backend.agent.langgraph_supervisor_1 import app
     gold = load_gold()
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     directory = args.output_root.resolve() / run_id

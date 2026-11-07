@@ -3,11 +3,11 @@ import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
 
-from chat_runtime import invoke_turn,final_reply
-from conversation_replies import REPLIES
+from backend.conversation.chat_runtime import invoke_turn,final_reply
+from backend.conversation.conversation_replies import REPLIES
 from evals.fixtures import CaseFixture
-from task_scheduler import prepare_plan
-from task_state import TaskPlan,PlannedTask,TaskParameters,ConversationTask
+from backend.tasks.task_scheduler import prepare_plan
+from backend.tasks.task_state import TaskPlan,PlannedTask,TaskParameters,ConversationTask
 
 
 def refusal(**kwargs):
@@ -40,7 +40,7 @@ class ScopeBoundaryTests(unittest.TestCase):
             TaskPlan(tasks=[refusal(ref='R'),PlannedTask(next='billing',task_type='order_query',ref='B',depends_on=['R'])])
 
     def test_refusal_has_no_business_or_expert_execution(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         with CaseFixture('owner') as f,patch.object(project,'supervisor_router') as router,\
                 patch.object(project,'execute_read_task') as direct,patch.object(project.sales_agent,'invoke') as expert:
             router.invoke.return_value=TaskPlan(tasks=[refusal()])
@@ -52,7 +52,7 @@ class ScopeBoundaryTests(unittest.TestCase):
             self.assertTrue(any('只处理本客服系统的业务' in m.content for m in prompt))
 
     def test_mixed_request_keeps_order_amount_and_refuses_code(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         with CaseFixture('owner') as f,patch.object(project,'supervisor_router') as router:
             router.invoke.return_value=TaskPlan(tasks=[refusal(ref='R'),PlannedTask(next='billing',task_type='order_query',
                 ref='B',focus=['amounts'],parameters=TaskParameters(order_id=f.slots['own_order']))])
@@ -64,7 +64,7 @@ class ScopeBoundaryTests(unittest.TestCase):
             self.assertEqual({t['kind'] for t in result['tasks']},{'conversation','order_query'})
 
     def test_order_number_still_continues_after_irrelevant_turn(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         with CaseFixture('owner') as f,patch.object(project,'supervisor_router') as router:
             router.invoke.return_value=TaskPlan(tasks=[PlannedTask(next='billing',task_type='order_query')])
             first=invoke_turn(project.app,'查一个订单，我稍后提供编号',f.thread_id)

@@ -15,9 +15,9 @@ def dump(path,value):path.write_text(json.dumps(value,ensure_ascii=False,default
 
 
 def plan_case(project,spec,repetition):
-    from task_state import ConversationTask,TaskParameters
+    from backend.tasks.task_state import ConversationTask,TaskParameters
     from evals.observer import EvaluationObserver
-    from chat_runtime import turn_config
+    from backend.conversation.chat_runtime import turn_config
     inputs=spec['inputs'];ids=[uuid4().hex for _ in inputs]
     tasks=[];messages=[]
     kind=spec.get('kind','product_search')
@@ -50,7 +50,7 @@ def plan_case(project,spec,repetition):
 
 
 def independent_reference(spec):
-    from postgres_config import connect_database
+    from backend.postgres_config import connect_database
     # This oracle never imports business filter builders, search, ranking, or renderer.
     categories={'bicycles':(1,2,3),'components':tuple(range(4,18)), 'clothing':tuple(range(18,26)),'accessories':tuple(range(26,38))}
     where=['product_subcategory_id=ANY(%s)','list_price>0','list_price<=%s'];params=[list(categories[spec['category']]),spec['budget']]
@@ -60,9 +60,9 @@ def independent_reference(spec):
 
 
 def end_to_end(project,spec):
-    from chat_runtime import stream_turn
+    from backend.conversation.chat_runtime import stream_turn
     from evals.observer import EvaluationObserver
-    from conversation_persistence import get_checkpointer
+    from backend.conversation.conversation_persistence import get_checkpointer
     import re
     from decimal import Decimal
     thread='constraint-e2e-'+uuid4().hex;turns=[];checks={}
@@ -93,7 +93,7 @@ def end_to_end(project,spec):
         return {'id':spec['id'],'turns':turns,'tasks':out.get('tasks'),'reference':refs,'checks':checks,'passed':all(checks.values())}
     finally:
         get_checkpointer().delete_thread(thread)
-        from postgres_config import connect_database
+        from backend.postgres_config import connect_database
         with connect_database() as c:
             c.execute('DELETE FROM human_handoffs WHERE thread_id=%s',(thread,))
             c.execute('DELETE FROM session_customers WHERE thread_id=%s',(thread,))
@@ -104,15 +104,15 @@ def main():
     parser.add_argument('--phase',choices=['plan','e2e','all'],default='all');parser.add_argument('--ids');args=parser.parse_args()
     if not args.live:print(json.dumps({'plan_scenarios':len(CASES),'plan_repetitions':args.repeat,'e2e_scenarios':len(END_TO_END),'calls':0}));return 0
     from evals.fixtures import source_fingerprint
-    from chat_events import configure_event_log
-    from deepseek_model import provider_settings
-    import langgraph_supervisor_1 as project
+    from backend.observability.chat_events import configure_event_log
+    from backend.agent.deepseek_model import provider_settings
+    import backend.agent.langgraph_supervisor_1 as project
     root=Path(__file__).parents[1];batch=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid4().hex[:8]
     directory=root/'evals/reports_constraints'/batch;directory.mkdir(parents=True,exist_ok=False)
     configure_event_log(directory/'events.jsonl')
     report={'version':'1.0.0','model':provider_settings(),'source_before':source_fingerprint(),'plan':[],'end_to_end':[],
         'dataset_sha256':digest(Path(__file__).with_name('constraint_cases.py')),
-        'code_files':{str(p.relative_to(root)):digest(p) for p in [*root.glob('*.py'),*root.joinpath('webapp').glob('*.py')]},
+        'code_files':{str(p.relative_to(root)):digest(p) for p in [*root.glob('backend/**/*.py'),*root.joinpath('webapp').glob('*.py')]},
         'limits':['Authored development regressions, not unseen holdout','Planner acceptance does not imply final-answer acceptance','No semantic suitability judge','No load acceptance','No retry to select a passing answer']}
     print('REPORT_DIR',directory,flush=True)
     selected=set(args.ids.split(',')) if args.ids else None

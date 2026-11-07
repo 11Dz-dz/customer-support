@@ -25,7 +25,7 @@
 
 ## 验证
 
-- [评测指南](../evals/README.md) · 当前入口、发布标准与结果
+- [评测指南](../evals/README.md) · 当前入口、评分和验收规则
 - [稳定性改进](RELIABILITY_IMPROVEMENTS_20261103.md) · 问题、原因和后续回归
 
-[历史改进长文和开发记录](https://github.com/11Dz-dz/customer-support/tree/767d280215a6344b00852416b9219a2ac121b958/docs)保存在整理前的提交中。
+[历次测试结果和开发记录](https://github.com/11Dz-dz/customer-support/tree/04a921eedddf8006e93a6ce4adf416ac6abe6e9b)可按当时版本查阅。

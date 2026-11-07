@@ -11,11 +11,11 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.tools import tool
 
-from answer_contract import PLAN_INSTRUCTION
-from prompt_catalog import read_prompt
-from specialist_config import build_specialist, load_specialist_specs
-from task_state import ConversationTask, TaskParameters, task_instruction
-from tool_execution import TurnPolicy, guarded_prompt, tool_execution_scope
+from backend.agent.answer_contract import PLAN_INSTRUCTION
+from backend.agent.prompt_catalog import read_prompt
+from backend.agent.specialist_config import build_specialist, load_specialist_specs
+from backend.tasks.task_state import ConversationTask, TaskParameters, task_instruction
+from backend.agent.tool_execution import TurnPolicy, guarded_prompt, tool_execution_scope
 
 
 class ConflictingFilterModel(BaseChatModel):
@@ -43,7 +43,7 @@ class ConflictingFilterModel(BaseChatModel):
 class CompositionRuntimeTest(unittest.TestCase):
     def test_normal_recommendation_loads_shared_steps_once(self):
         task=self.task('推荐一款自行车');before=task.model_dump()
-        with tool_execution_scope(TurnPolicy(task=task)),patch('tool_execution.emit_event') as emit:
+        with tool_execution_scope(TurnPolicy(task=task)),patch('backend.agent.tool_execution.emit_event') as emit:
             messages=guarded_prompt(read_prompt('sales')+PLAN_INSTRUCTION,
                 skills=load_specialist_specs()['sales'].skills)({'messages':[HumanMessage(content=task.query)]})
         self.assertEqual(messages[0].content.count('# 商品推荐与候选选择操作说明'),1)
@@ -53,7 +53,7 @@ class CompositionRuntimeTest(unittest.TestCase):
 
     def test_comparison_uses_shared_steps_and_supplement_once(self):
         task=self.task()
-        with tool_execution_scope(TurnPolicy(task=task)),patch('tool_execution.emit_event'):
+        with tool_execution_scope(TurnPolicy(task=task)),patch('backend.agent.tool_execution.emit_event'):
             messages=guarded_prompt(read_prompt('sales')+PLAN_INSTRUCTION,
                 skills=load_specialist_specs()['sales'].skills)({'messages':[HumanMessage(content=task.query)]})
         text=messages[0].content
@@ -69,7 +69,7 @@ class CompositionRuntimeTest(unittest.TestCase):
         task = self.task('推荐一款自行车')
         message = HumanMessage(content=task.query)
         base = read_prompt('sales') + PLAN_INSTRUCTION
-        with tool_execution_scope(TurnPolicy(task=task)), patch('tool_execution.emit_event') as emit:
+        with tool_execution_scope(TurnPolicy(task=task)), patch('backend.agent.tool_execution.emit_event') as emit:
             messages = guarded_prompt(base, skills=('product-comparison',))({'messages': [message]})
         self.assertEqual(messages[0].content,
             base + read_prompt('execution') + task_instruction(task) + read_prompt('evidence'))
@@ -81,7 +81,7 @@ class CompositionRuntimeTest(unittest.TestCase):
         before = task.model_dump(mode='json')
         original = [HumanMessage(content=task.query)]
         snapshot = [m.model_dump() for m in original]
-        with tool_execution_scope(TurnPolicy(task=task)), patch('tool_execution.emit_event') as emit:
+        with tool_execution_scope(TurnPolicy(task=task)), patch('backend.agent.tool_execution.emit_event') as emit:
             messages = guarded_prompt(read_prompt('sales') + PLAN_INSTRUCTION,
                 skills=('product-comparison',))({'messages': original})
         self.assertIn('商品对比操作说明', messages[0].content)
@@ -107,7 +107,7 @@ class CompositionRuntimeTest(unittest.TestCase):
             roles.append(role)
             return model
         agent = build_specialist(load_specialist_specs()['sales'], [search], factory)
-        with tool_execution_scope(TurnPolicy(task=self.task())), patch('tool_execution.emit_event'):
+        with tool_execution_scope(TurnPolicy(task=self.task())), patch('backend.agent.tool_execution.emit_event'):
             result = agent.invoke({'messages': [HumanMessage(content='比较自行车，预算500以内')]})
         replies = [m for m in result['messages'] if isinstance(m, ToolMessage)]
         self.assertEqual(executions, [])
@@ -119,7 +119,7 @@ class CompositionRuntimeTest(unittest.TestCase):
     def test_original_input_survives_task_query_rewrite_in_real_prompt(self):
         task = self.task('推荐两款自行车')
         policy = TurnPolicy(task=task, user_query='比较两款自行车')
-        with tool_execution_scope(policy), patch('tool_execution.emit_event'):
+        with tool_execution_scope(policy), patch('backend.agent.tool_execution.emit_event'):
             messages = guarded_prompt(read_prompt('sales') + PLAN_INSTRUCTION,
                 skills=('product-comparison',))({'messages': [HumanMessage(content=task.query)]})
         self.assertIn('商品对比操作说明', messages[0].content)

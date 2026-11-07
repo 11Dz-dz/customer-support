@@ -2,11 +2,11 @@
 import json
 import unittest
 from langchain_core.messages import AIMessage,ToolMessage
-from task_state import ConversationTask,TaskParameters,TaskPlan,PlannedTask,FieldUpdate
-from task_scheduler import prepare_plan,PlanConflict
-from constraint_updates import ConstraintConflict,fields_for_kind
-from relative_price import relative_request
-from retrieval_pipeline import candidate_pool
+from backend.tasks.task_state import ConversationTask,TaskParameters,TaskPlan,PlannedTask,FieldUpdate
+from backend.tasks.task_scheduler import prepare_plan,PlanConflict
+from backend.tasks.constraint_updates import ConstraintConflict,fields_for_kind
+from backend.catalog.relative_price import relative_request
+from backend.catalog.retrieval_pipeline import candidate_pool
 
 
 def saved(*,ids=(959,),price='742.3500',budget=None):
@@ -110,7 +110,7 @@ class RelativePriceTests(unittest.TestCase):
         with self.assertRaises(ConstraintConflict):relative_request(['比这个便宜20%'])
 
     def test_relative_audit_respects_persisted_history_limit(self):
-        from relative_price import apply_bound
+        from backend.catalog.relative_price import apply_bound
         task,_=saved();task.parameter_changes=[{'field':'color','action':'test'} for _ in range(30)]
         apply_bound(task,{'field':'max_price','value':742.3499})
         self.assertEqual(len(task.parameter_changes),30)

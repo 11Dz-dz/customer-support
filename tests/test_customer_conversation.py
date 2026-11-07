@@ -4,14 +4,14 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-import test_refund_web as existing
-from adventureworks_service import AdventureWorksService
-from conversation_replies import routine_intent
-from conversation_persistence import get_checkpointer
-from postgres_config import connect_database
-from task_state import TaskPlan,PlannedTask,TaskParameters,PlannerParameters,prepare_task
-from session_identity import bind_session_customer
-from chat_runtime import invoke_turn,final_reply
+from tests import test_refund_web as existing
+from backend.orders.adventureworks_service import AdventureWorksService
+from backend.conversation.conversation_replies import routine_intent
+from backend.conversation.conversation_persistence import get_checkpointer
+from backend.postgres_config import connect_database
+from backend.tasks.task_state import TaskPlan,PlannedTask,TaskParameters,PlannerParameters,prepare_task
+from backend.conversation.session_identity import bind_session_customer
+from backend.conversation.chat_runtime import invoke_turn,final_reply
 
 
 class CustomerConversationTests(unittest.TestCase):
@@ -44,7 +44,7 @@ class CustomerConversationTests(unittest.TestCase):
         return rid
 
     def lookup(self,filter=None,limit=5,customer=29825):
-        with patch('adventureworks_service.connect_database',self.connect):
+        with patch('backend.orders.adventureworks_service.connect_database',self.connect):
             return self.business.list_my_orders(filter,limit,customer_id=customer)
 
     def plan(self,**kwargs):
@@ -52,12 +52,12 @@ class CustomerConversationTests(unittest.TestCase):
             parameters=TaskParameters(order_scope='mine',refund_filter='active',**kwargs))])
 
     def turn(self,plan,text,thread):
-        import langgraph_supervisor_1 as project
-        with patch.object(project,'supervisor_router',SimpleNamespace(invoke=lambda *_:plan)),patch('adventureworks_service.connect_database',self.connect):
+        import backend.agent.langgraph_supervisor_1 as project
+        with patch.object(project,'supervisor_router',SimpleNamespace(invoke=lambda *_:plan)),patch('backend.orders.adventureworks_service.connect_database',self.connect):
             return invoke_turn(project.app,text,thread)
 
     def test_standard_greeting_thanks_and_goodbye_do_not_use_router_or_tools(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         thread=self.thread()
         with patch.object(project,'supervisor_router') as router,patch.object(project.order_service,'list_my_orders') as lookup:
             for query,expected in [('你好','你好'),('谢谢！','不客气'),('再见','再见'),('你能做什么？','订单')]:
@@ -100,7 +100,7 @@ class CustomerConversationTests(unittest.TestCase):
         self.assertFalse(self.lookup('arbitrary')['success'])
         for limit in [0,21,True]:self.assertFalse(self.lookup(limit=limit)['success'])
         with self.assertRaises(ValueError):TaskParameters(customer_id=29672)
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         self.assertNotIn('customer_id',project.query_my_orders.get_input_schema().model_fields)
 
     def test_unique_refund_candidate_resolves_order_and_followup(self):

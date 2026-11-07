@@ -23,7 +23,7 @@
 
 ## 包含、排除和组合如何表达
 
-`catalog_query.py` 定义受限条件语言：大类category、具体商品类型product_type、颜色、尺寸、目录标价五个字段。前四者支持eq/ne/in/not_in，标价支持eq/ne/lt/lte/gt/gte。product_type由`product_taxonomy.py`维护实际子类编号和中英文名称，如头盔helmet，不能只落成整个骑行装备大类。类型SQL和候选核对使用同一适配数据。
+`backend/catalog/catalog_query.py` 定义受限条件语言：大类category、具体商品类型product_type、颜色、尺寸、目录标价五个字段。前四者支持eq/ne/in/not_in，标价支持eq/ne/lt/lte/gt/gte。product_type由`backend/catalog/product_taxonomy.py`维护实际子类编号和中英文名称，如头盔helmet，不能只落成整个骑行装备大类。类型SQL和候选核对使用同一适配数据。
 
 每组conditions之间是“并且”，groups之间是“或者”。同一字段的多个备选值用in；普通筛选只有一组。例如“红色或银色，并且600以内”：
 
@@ -63,21 +63,4 @@ overview从数据库读取分类记录数，单独报告未分类记录。排除
 
 ## 修改位置
 
-`catalog_query.py`负责条件类型、合并、SQL编译、候选匹配和目录说明；`task_state.py`定义可写补丁与持久化字段；`constraint_updates.py`衔接旧路径和多任务来源；`adventureworks_service.py`统一目录/检索过滤并增加overview；`product_knowledge.py`、`retrieval_pipeline.py`核对两路召回和候选；`task_execution.py`、`tool_execution.py`负责直接执行及参数保护；`answer_contract.py`负责事实展示；路由获得目录能力及组合规则。
-
-## 开源参考与统一查询初版验证
-
-本次静态阅读NVIDIA Retail Shopping Assistant固定版本`50468a94dc9adfa9bdd72d884647418a5e341afd`的目录工具、能力边界和过滤测试，以及Sierra tau-bench目录类型工具、LangChain StructuredQuery。借鉴职责和条件表达；没有复制整套系统，也没有运行这些外部项目。本项目使用自己的受限条件模型及PostgreSQL编译器。
-
-首轮20个真实模型开发场景保留原报告：发现了只读状态被当作写入口、普通AND被错误分成OR组等问题，随后调整规划schema和组合规则。Q14原参考把宽泛“自行车配件”仅算作装备，忽略零部件；依据实际分类修正独立SQL参考，同时保留原始失败记录。后续同题又发现模型只保留“非整车”、漏掉配件正向范围，导致服装也计入。这是真实规划缺漏，不能当作评分器误判；新增执行前正向范围完整性检查和目录父类能力说明。
-
-后续多轮测试又发现：模型复述旧预算被误当成新编辑，以及“颜色不限”只从模型输出省略字段而没有删除旧约束。程序现按字段差异忽略已确认的不变项，并识别有原文依据的明确清除。保留各版失败轨迹；逐轮独立SQL复核不只检查最后一轮。预留验收题一旦用于发现问题，后续即按回归题处理，不再宣称未见盲测。
-
-最终测试数量、批次、部署及限制以本轮服务器记录为准：`evals/catalog_query_20261103/`、`logs/query_deployment_20261103.json`、`logs/query_verification_20261103.json`。专项脚本为`python -m evals.catalog_query_runner --live`；预留验收题使用`--phase acceptance`，它们仍是人工编写的模拟题，不是独立真实用户验收。
-
-
-本轮自动验证：535项通过，其中新增23项包含SQL/Python逻辑一致性（40组固定随机组合）、多轮补丁、清除、报价条件来源、工具拦截及正向范围缺漏。当前版本开发组20场景26轮、预留组8场景10轮均通过功能和独立SQL核对；预留题此前发现过缺陷，当前结果按回归报告解读。旧功能回归及逐轮复核结果以部署记录为准。
-
-旧E03预算回归出现措辞误判：独立SQL证实预算500内无自行车，实际回答“未记录符合条件的商品”正确；旧评分正则只识别“没有/未找到/暂无”。已补充评分器识别范围，保留原子报告与组合报告的失败状态，另存SHA关联复核。该项只离线核对已有记录，不再次调用模型或业务工具。
-
-统一查询初版同版本功能回归范围：新查询28个场景36轮，加上既有业务9场景10轮、范围拒答15场景17轮、相对价格6场景9轮、同款规格11场景13轮，共69个场景85轮。E03原评分失败保留并单独复核，其余组按原报告核对。多轮中的13个中间及最终查询轮次另作逐轮SQL复核；部署只接受报告哈希与测试源码一致的版本。当时未运行新的全量80题及推荐语义评审；后续扩展评测和修复见[稳定性改进](RELIABILITY_IMPROVEMENTS_20261103.md)，不把初版数字当作最新版本验收。
+`backend/catalog/catalog_query.py`负责条件类型、合并、SQL编译、候选匹配和目录说明；`backend/tasks/task_state.py`定义可写补丁与持久化字段；`backend/tasks/constraint_updates.py`衔接旧路径和多任务来源；`backend/orders/adventureworks_service.py`统一目录/检索过滤并增加overview；`backend/catalog/product_knowledge.py`、`backend/catalog/retrieval_pipeline.py`核对两路召回和候选；`backend/tasks/task_execution.py`、`backend/agent/tool_execution.py`负责直接执行及参数保护；`backend/agent/answer_contract.py`负责事实展示；路由获得目录能力及组合规则。

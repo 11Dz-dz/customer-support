@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError, URLError
 
-import health_monitor as health
+import backend.observability.health_monitor as health
 
 
 def human(text):
@@ -168,9 +168,9 @@ class HealthGraphIntegrationTest(unittest.TestCase):
     def test_raw_technical_draft_never_leaks_and_saved_reply_matches_stream(self):
         from langchain_core.language_models.fake_chat_models import FakeListChatModel
         from langchain_core.messages import AIMessage, ToolMessage
-        from chat_runtime import stream_turn
+        from backend.conversation.chat_runtime import stream_turn
         from evals.fixtures import CaseFixture
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         value={'component':'api','success':False,'status':'unhealthy','checked_at':'2026-01-01T00:00:00+00:00',
                'elapsed_ms':10,'http_status':401,'error_code':'AUTHENTICATION_REJECTED'}
         class Agent:

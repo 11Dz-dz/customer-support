@@ -37,19 +37,19 @@ def main():
     if not args.live:print('No model calls; use --live --snapshot for comparative-price regressions.');return 0
     if not args.snapshot:parser.error('--snapshot is required')
     from langchain_core.messages import messages_from_dict
-    import langgraph_supervisor_1 as project
-    from chat_runtime import stream_turn
-    from chat_events import configure_event_log
+    import backend.agent.langgraph_supervisor_1 as project
+    from backend.conversation.chat_runtime import stream_turn
+    from backend.observability.chat_events import configure_event_log
     from evals.fixtures import CaseFixture,source_fingerprint
     from evals.observer import EvaluationObserver
-    from postgres_config import connect_database
-    from session_identity import identity_guard_node
+    from backend.postgres_config import connect_database
+    from backend.conversation.session_identity import identity_guard_node
     root=Path(__file__).resolve().parents[1];batch=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid4().hex[:8]
     directory=root/'evals/reports_relative_price'/batch;directory.mkdir(parents=True);directory.chmod(0o700)
     configure_event_log(directory/'events.jsonl');snapshot=json.loads(args.snapshot.read_text(encoding='utf-8'))
     report={'batch':batch,'source_before':source_fingerprint(),'snapshot_sha256':hashlib.sha256(args.snapshot.read_bytes()).hexdigest(),
         'results':[],'code_files':{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in [*root.glob('*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json'),*root.glob('skills/*/SKILL.md')]},
+            for p in [*root.glob('backend/**/*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json'),*root.glob('skills/*/SKILL.md')]},
         'limits':['Only new fixture threads are invoked','Functional and independent SQL checks, not a semantic suitability judge',
                   'No rerun to select a passing answer','Controlled empty recommendations are permitted when evidence is insufficient']}
     def save():(directory/'report.json').write_text(json.dumps(report,indent=2,ensure_ascii=False,default=str),encoding='utf-8')
@@ -117,14 +117,14 @@ def main():
             project.app.update_state({'configurable':{'thread_id':fixture.thread_id}},
                 {**identity_guard_node({'messages':[]},{'configurable':{'thread_id':fixture.thread_id}}),'messages':messages,'tasks':[old]})
             row=turn('有没有比这个更便宜的',fixture)
-            from task_state import ConversationTask
+            from backend.tasks.task_state import ConversationTask
             checks={'no_tool_execution':not row['tools'],'clarification_present':reference_question(row['answer'],row['active_ids']),
                 'old_task_preserved':next(t for t in row['tasks'] if t['task_id']==old['task_id'])==ConversationTask.model_validate(old).model_dump(mode='json')}
             report['results'].append({'id':'R06','turns':[row],'checks':checks,'passed':all(checks.values())});save();print('R06',all(checks.values()),flush=True)
     finally:
         report['source_after']=source_fingerprint();report['source_unchanged']=report['source_before']==report['source_after']
         report['passed']=len(report['results'])==6 and all(r['passed'] for r in report['results']) and report['source_unchanged'];save()
-        from langsmith_tracing import flush_traces
+        from backend.observability.langsmith_tracing import flush_traces
         flush_traces()
     print(json.dumps({'passed':report['passed'],'cases':len(report['results'])}),flush=True)
     return 0 if report['passed'] else 1

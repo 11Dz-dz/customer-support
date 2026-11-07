@@ -2,19 +2,19 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from task_state import ConversationTask,TaskParameters,TaskPlan,PlannedTask,PlannerParameters
-from task_scheduler import prepare_plan
-from task_execution import read_operations
-from constraint_updates import ConstraintConflict
+from backend.tasks.task_state import ConversationTask,TaskParameters,TaskPlan,PlannedTask,PlannerParameters
+from backend.tasks.task_scheduler import prepare_plan
+from backend.tasks.task_execution import read_operations
+from backend.tasks.constraint_updates import ConstraintConflict
 
 
 class CoverageRegressionTests(unittest.TestCase):
     def test_scope_model_timeout_restores_plan_but_total_deadline_does_not(self):
-        import langgraph_supervisor_1 as project
-        from request_deadline import ModelCallTimeout,RequestDeadlineExceeded
+        import backend.agent.langgraph_supervisor_1 as project
+        from backend.agent.request_deadline import ModelCallTimeout,RequestDeadlineExceeded
         from evals.fixtures import CaseFixture
-        from chat_runtime import invoke_turn,final_reply
-        import chat_events
+        from backend.conversation.chat_runtime import invoke_turn,final_reply
+        import backend.observability.chat_events as chat_events
         text='查商品989，再问你们卖电动汽车吗'
         plan=TaskPlan(tasks=[PlannedTask(next='sales',task_type='product_detail',ref='B',
             query='查商品989',parameters=PlannerParameters(product_ids=[989])),
@@ -25,7 +25,7 @@ class CoverageRegressionTests(unittest.TestCase):
                                (RequestDeadlineExceeded('injected total deadline'),False)]:
             with self.subTest(error=type(error).__name__),CaseFixture('owner') as fixture,\
                     patch.object(project,'invoke_model',side_effect=[plan.model_copy(deep=True),error]) as model,\
-                    patch('chat_events.emit_planner_diagnostic',wraps=chat_events.emit_planner_diagnostic) as diagnostic:
+                    patch('backend.observability.chat_events.emit_planner_diagnostic',wraps=chat_events.emit_planner_diagnostic) as diagnostic:
                 result=invoke_turn(project.app,text,fixture.thread_id)
             self.assertEqual(model.call_count,2)
             answer=final_reply(result['messages']).content
@@ -60,10 +60,10 @@ class CoverageRegressionTests(unittest.TestCase):
             prepare_plan(plan,{'tasks':[old.model_dump()]},'500以内',original_inputs=['500以内'])
 
     def test_invalid_scope_repair_preserves_original_business_execution(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         from evals.fixtures import CaseFixture
-        from chat_runtime import invoke_turn,final_reply
-        import chat_events
+        from backend.conversation.chat_runtime import invoke_turn,final_reply
+        import backend.observability.chat_events as chat_events
         text='查商品989，再问你们卖电动汽车吗'
         business=PlannedTask(next='sales',task_type='product_detail',ref='B',query='查商品989',
             parameters=PlannerParameters(product_ids=[989]))
@@ -77,7 +77,7 @@ class CoverageRegressionTests(unittest.TestCase):
             parameters=PlannerParameters(operation='coverage',requested_item='电动汽车'))
         invalid=TaskPlan(tasks=[changed,replacement])
         with CaseFixture('owner') as fixture,patch.object(project,'invoke_model',side_effect=[original,invalid]) as model,\
-                patch('chat_events.emit_planner_diagnostic',wraps=chat_events.emit_planner_diagnostic) as diagnostic:
+                patch('backend.observability.chat_events.emit_planner_diagnostic',wraps=chat_events.emit_planner_diagnostic) as diagnostic:
             result=invoke_turn(project.app,text,fixture.thread_id)
         self.assertEqual(model.call_count,2)
         answer=final_reply(result['messages']).content

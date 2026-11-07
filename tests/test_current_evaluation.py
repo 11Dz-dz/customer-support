@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import unittest
 
+from backend.agent.deepseek_model import provider_body
 from evals.current_dataset import current_cases,validate,dataset_hash
 from evals.current_contracts import authorized_rows,amount_checks,labeled_amount_checks
 from evals.frameworks import trajectory_checks,matching_args,AnswerJudge
@@ -84,14 +85,14 @@ class CurrentEvaluationTests(unittest.TestCase):
         self.assertEqual(malformed['status'],'unavailable');self.assertIsNone(malformed['score'])
         self.assertIsNotNone(malformed['raw_response'])
         from unittest.mock import patch
-        from deepseek_model import ThinkingChatDeepSeek
+        from backend.agent.deepseek_model import ThinkingChatDeepSeek
         from langchain_core.messages import HumanMessage
         model=ThinkingChatDeepSeek(model='deepseek-flash',api_key='offline-not-a-key')
-        with patch('langgraph_supervisor_1.create_deepseek_model',return_value=model):
+        with patch('backend.agent.langgraph_supervisor_1.create_deepseek_model',return_value=model):
             judge=AnswerJudge()
         payload=judge.model._get_request_payload([HumanMessage(content='offline check')])
         self.assertIs(payload['stream'],False)
-        self.assertEqual(payload['extra_body'],__import__('deepseek_model').provider_body('evaluation_judge'))
+        self.assertEqual(payload['extra_body'],provider_body('evaluation_judge'))
         self.assertEqual(payload.get('max_tokens',payload.get('max_completion_tokens')),2048)
 
     def test_judge_error_is_unavailable_not_a_zero_quality_score(self):

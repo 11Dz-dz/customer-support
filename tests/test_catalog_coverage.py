@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import patch
-from catalog_coverage import coverage,lexical_match,render_coverage
-from task_state import TaskPlan,PlannedTask,PlannerParameters
-from scope_routing import refusal_review,validate_coverage_sources,validate_scope_repair
+from backend.catalog.catalog_coverage import coverage,lexical_match,render_coverage
+from backend.tasks.task_state import TaskPlan,PlannedTask,PlannerParameters
+from backend.agent.scope_routing import refusal_review,validate_coverage_sources,validate_scope_repair
 
 
 def refused(text,ref='R',**extra):
@@ -21,8 +21,8 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(result['confirmed_count'],3)
 
     def test_confirmed_coverage_survives_the_actual_tool_boundary(self):
-        from business_tools import query_products
-        from tool_result import normalize_result
+        from backend.agent.business_tools import query_products
+        from backend.agent.tool_result import normalize_result
         result=normalize_result(query_products.invoke({'operation':'coverage','requested_item':'头盔'}),'query_products')
         self.assertTrue(result.ok)
         self.assertEqual(result.data['coverage_status'],'CONFIRMED')
@@ -39,7 +39,7 @@ class CoverageTests(unittest.TestCase):
                 self.assertNotIn('缺货',text)
 
     def test_database_error_and_empty_item_are_check_failures(self):
-        with patch('catalog_coverage.connect_database',side_effect=RuntimeError()):
+        with patch('backend.catalog.catalog_coverage.connect_database',side_effect=RuntimeError()):
             result=coverage('头盔')
         self.assertFalse(result['success'])
         self.assertEqual(result['coverage_status'],'CHECK_FAILED')
@@ -76,9 +76,9 @@ class CoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):validate_coverage_sources(plan,['卖汽车吗'])
 
     def test_refusal_repair_uses_shared_allowance(self):
-        import langgraph_supervisor_1 as project
+        import backend.agent.langgraph_supervisor_1 as project
         from langchain_core.messages import HumanMessage
-        from chat_runtime import turn_config
+        from backend.conversation.chat_runtime import turn_config
         from uuid import uuid4
         text='你们卖电动汽车吗'
         first=TaskPlan(tasks=[refused(text)])

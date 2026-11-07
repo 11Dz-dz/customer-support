@@ -44,11 +44,10 @@ LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 区域地址必须与账号一致，EU 等其他区域请使用控制台提供的 API Endpoint。修改配置后正常重启 Web 服务。不要把密钥贴在聊天、代码或命令参数里。
 
 ```bash
-cd /root/rivermind-data/Agent/example/langgraph_olist_example
-/opt/conda/envs/agent/bin/python manage_tracing.py status
-/opt/conda/envs/agent/bin/python manage_tracing.py check
+python -m scripts.manage_tracing status
+python -m scripts.manage_tracing check
 # 只有具备读取权限的密钥才可选：
-/opt/conda/envs/agent/bin/python manage_tracing.py check --read
+python -m scripts.manage_tracing check --read
 ```
 
 check 只上传一条连接检查，不调用 DeepSeek，不查询或变更订单。write=accepted 表示接口接受写入；读取确认是另一步。Tracing Only 密钥不能读取链路，读取返回 403 不代表写入失败，也不需要为了追踪更换密钥；在你登录的 LangSmith 页面查看即可。
@@ -65,28 +64,17 @@ check 只上传一条连接检查，不调用 DeepSeek，不查询或变更订�
 
 | 文件 | 作用 |
 |---|---|
-| langsmith_tracing.py | 统一客户端、请求根链路、事件关联、上传过滤及后台队列收尾。 |
-| chat_runtime.py | 流式/一次性聊天入口都包住完整执行过程，保存最终回答。 |
-| chat_events.py | 保留本地事件，并将路由、缓存、拦截、结果验证等事件关联到当前链路。 |
+| backend/observability/langsmith_tracing.py | 统一客户端、请求根链路、事件关联、上传过滤及后台队列收尾。 |
+| backend/conversation/chat_runtime.py | 流式/一次性聊天入口都包住完整执行过程，保存最终回答。 |
+| backend/observability/chat_events.py | 保留本地事件，并将路由、缓存、拦截、结果验证等事件关联到当前链路。 |
 | webapp/runtime.py | 工作线程传递网页运行关联信息，用户页面继续只接收公开事件。 |
-| manage_tracing.py | 安全配置检查与无模型连接测试。 |
+| scripts/manage_tracing.py | 安全配置检查与无模型连接测试。 |
 | tests/test_tracing.py | 真实 SDK＋假网络传输，验证层级、异步模型、流式、隔离、过滤和失败降级。 |
 
 官方依据：[LangGraph 追踪](https://docs.langchain.com/langsmith/trace-with-langgraph)、[上传过滤](https://docs.langchain.com/langsmith/mask-inputs-outputs)、[密钥权限](https://docs.langchain.com/langsmith/create-account-api-key)。
 
-### 当前版评测关联（2026-10-30）
+### 当前版评测关联
 
-`run_current_evaluation.py` 给每轮根链路添加 `eval_batch_id`、`eval_case_id`、`eval_repeat`、`eval_turn`、`eval_dataset_version`，可以在LangSmith控制台按批次与场景筛选。报告的 `trace_links.json` 保存本地评分到trace的对应关系。普通用户页面仍不展示请求编号。
+`evals/run_current_evaluation.py` 给每轮根链路添加 `eval_batch_id`、`eval_case_id`、`eval_repeat`、`eval_turn`、`eval_dataset_version`，可以在LangSmith控制台按批次与场景筛选。报告的 `trace_links.json` 保存本地评分到trace的对应关系。普通用户页面仍不展示请求编号。
 
 评审分数在服务器本地报告中保存；Tracing Only密钥只写链路，不能发布Dataset/Experiment或回读运行。没有把“写入追踪”说成“已经在LangSmith完成云端实验”。OpenEvals/AgentEvals的默认独立追踪关闭，目标业务仍使用原有过滤后的显式根链路。说明见 [当前评测](../evals/CURRENT_EVALUATION.md)。
-
-
-## 本次验证（2026-10-29）
-
-264项自动测试通过，其中新增8项追踪测试；使用实际SDK和假的HTTP传输，不上传测试中的业务数据。验证流式/一次性、异步模型线程、同一根链路、并发隔离、过滤不改原对象，以及缺密钥/初始化失败时业务继续。
-
-真实DeepSeek的只读商品问题记录到1条根链路、15个步骤，包含路由模型、商品详情工具、collect和answer，父子trace_id一致，结束状态已提交；LangSmith接收接口返回202，未发现已配置凭证出现在上传副本中。只写密钥无runs:read权限，未通过读取接口宣称完成远端回读；可在控制台查看。原始商品和订单指纹未改变。
-
-早期手动连接探测请求失败，改用固定内容的同步探测后写入/更新成功，读取403确认是仅写权限。早期实测脚本误将SDK运行字典按不存在的op字段分类，导致把已收到202的运行统计为0；修正验证脚本后取得上述15步结果。早期记录保留，不作为业务失败或最终通过记录。
-
-部署后6项网页检查通过：登录、提交只读商品问题、回答、隐藏请求编号、刷新恢复历史和无浏览器异常；本地request_id与LangSmith追踪编号匹配，当前服务日志无上传错误，临时验收会话已限定清理。详细私有验证记录位于logs/langsmith_verification_20261029.json。

@@ -11,15 +11,15 @@
 需要 Python 3.11+、PostgreSQL 与 pgvector、一个 DeepSeek 兼容 API Key。网页还需要 Node.js 和 pnpm 构建前端。
 
 1. 在虚拟环境中运行 `python -m pip install -r requirements-web.txt`。
-2. 将 [配置模板](.env.example) 复制为 `.env`，配置 `DATABASE_URL` 与模型服务。DeepSeek 官方与阿里云百炼配置见模板。
+2. 创建 PostgreSQL 数据库，由数据库管理员在目标库执行 `CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;`。将 [配置模板](.env.example) 复制为 `.env`，配置 `DATABASE_URL` 与模型服务。DeepSeek 官方与阿里云百炼配置见模板。
 3. 按 [样例数据](data/README.md) 和 [本地模型](models/README.md) 说明准备文件。Embedding 在 CPU 上运行。
 4. 在仓库根目录导入数据、构建索引并启动命令行：
 
 ```bash
-python import_adventureworks.py --validate-only
-python import_adventureworks.py
-python build_product_knowledge.py
-python run_multiturn.py --thread-id demo-guest --verbose
+python -m scripts.import_adventureworks --validate-only
+python -m scripts.import_adventureworks
+python -m scripts.build_product_knowledge
+python -m scripts.run_multiturn --thread-id demo-guest --verbose
 ```
 
 命令行访客可咨询商品。查询订单需要为会话配置样例客户，见 [会话身份与订单权限](docs/SESSION_USERS_20261020.md)。
@@ -40,11 +40,13 @@ python -m uvicorn webapp.api:app --host 127.0.0.1 --port 8000 --workers 1
 
 | 位置 | 内容 |
 | --- | --- |
-| [langgraph_supervisor_1.py](langgraph_supervisor_1.py)、[workflow_builder.py](workflow_builder.py) | Supervisor 和 LangGraph 流程 |
-| [chat_runtime.py](chat_runtime.py)、[task_state.py](task_state.py)、[task_scheduler.py](task_scheduler.py) | 会话执行入口、任务状态和调度 |
+| [backend/agent](backend/agent)、[backend/tasks](backend/tasks) | Supervisor、LangGraph 流程、任务状态与调度 |
+| [backend/catalog](backend/catalog)、[backend/orders](backend/orders) | 目录、商品检索、订单与退款 |
+| [backend/conversation](backend/conversation)、[backend/observability](backend/observability) | 会话、身份、工单、日志、追踪与健康检查 |
 | [prompts](prompts)、[skills](skills)、[config](config) | 路由、专家提示词、业务操作说明及工具配置 |
 | [webapp](webapp)、[frontend](frontend)、[deploy](deploy) | Web 接口、界面和部署配置 |
-| [data](data)、[models](models)、根目录 SQL | 数据与模型准备说明、数据库结构 |
+| [data](data)、[models](models)、[database](database) | 数据与模型准备说明、数据库结构 |
+| [scripts](scripts) | 命令行对话、数据导入与管理命令 |
 | [tests](tests)、[evals](evals) | 自动测试、评测代码与可复现样例 |
 | [docs](docs/README.md) | 维护手册和设计说明 |
 
@@ -52,9 +54,9 @@ python -m uvicorn webapp.api:app --host 127.0.0.1 --port 8000 --workers 1
 
 ```bash
 python -B -m unittest discover -s tests -t .
-python run_current_evaluation.py --validate
+python -m evals.run_current_evaluation --validate
 ```
 
-部分 Python 测试需要 PostgreSQL。真实模型评测需配置模型服务并消耗额度，入口、分项结果及发布标准见 [评测指南](evals/README.md)。
+部分 Python 测试需要 PostgreSQL。真实模型评测需配置模型服务并消耗额度，入口和验收规则见 [评测指南](evals/README.md)。
 
 项目使用 AdventureWorks 历史样例数据。实时库存、支付流水和物流轨迹未接入，退款审核也不执行资金退款。密钥、数据源文件、模型权重、运行日志、会话与原始评测报告在本地或部署环境管理。

@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 import logging
 
 from webapp.store import WebError
-from langsmith_tracing import request_metadata_scope,flush_traces
-from turn_inbox import inbox_scope,TurnStopped
+from backend.observability.langsmith_tracing import request_metadata_scope,flush_traces
+from backend.conversation.turn_inbox import inbox_scope,TurnStopped
 from webapp.inbox import WebInbox
 
 PROGRESS={'search_products':'正在检索商品','query_products':'正在筛选商品',
@@ -40,8 +40,8 @@ class WebRuntime:
             c.execute("UPDATE web_runs SET status='interrupted',finished_at=now() WHERE status IN ('pending','running')")
             c.execute("UPDATE web_run_inputs SET phase='interrupted' WHERE phase IN ('pending','included') AND run_id IN (SELECT run_id FROM web_runs WHERE status='interrupted')")
         if self.stream is None:
-            from chat_runtime import stream_turn
-            from langgraph_supervisor_1 import app
+            from backend.conversation.chat_runtime import stream_turn
+            from backend.agent.langgraph_supervisor_1 import app
             self.stream,self.graph=stream_turn,app
         self.executor=ThreadPoolExecutor(max_workers=self.capacity,thread_name_prefix='customer-web')
 
@@ -98,8 +98,8 @@ class WebRuntime:
             except Exception:logger.error('web_run_finalize_failed run_id=%s',rid)
 
     def history(self,user_id,cid):
-        from chat_runtime import public_text
-        from session_identity import validate_session_state
+        from backend.conversation.chat_runtime import public_text
+        from backend.conversation.session_identity import validate_session_state
         conv=self.store.owned(user_id,cid)
         values=self.graph.get_state({'configurable':{'thread_id':conv['thread_id']}}).values
         receipts=self.store.input_history(cid)

@@ -2,9 +2,9 @@
 import secrets
 from uuid import uuid4
 
-from conversation_persistence import get_checkpointer
-from postgres_config import connect_database
-from session_identity import bind_session_customer
+from backend.conversation.conversation_persistence import get_checkpointer
+from backend.postgres_config import connect_database
+from backend.conversation.session_identity import bind_session_customer
 
 
 class CaseFixture:

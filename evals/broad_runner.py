@@ -37,11 +37,11 @@ def main():
     from evals.dataset import load_gold,digest
     from evals.reporting import manifest,write_json
     from evals.fixtures import source_fingerprint
-    from conversation_persistence import close_persistence
-    from chat_events import configure_event_log
-    from langsmith_tracing import flush_traces
-    from langgraph_supervisor_1 import app
-    from catalog_query import capabilities
+    from backend.conversation.conversation_persistence import close_persistence
+    from backend.observability.chat_events import configure_event_log
+    from backend.observability.langsmith_tracing import flush_traces
+    from backend.agent.langgraph_supervisor_1 import app
+    from backend.catalog.catalog_query import capabilities
     class BroadJudge(AnswerJudge):
         def score(self,trace,context,evidence,contract):
             return super().score(trace,context,ready_judge_reference(evidence,trace,capabilities()),contract)
@@ -52,7 +52,7 @@ def main():
     configure_event_log(directory/'events.jsonl');metadata=manifest(cases,source_fingerprint());root=Path(__file__).resolve().parents[1]
     metadata.update(dataset_version=VERSION,dataset_sha256=dataset_hash(all_cases),scorer_version='broad-1',split_policy='Authored expansion; no production generalization claim',
         judge={'enabled':not args.no_judge,'model':metadata['model']['name'],'independent_model':False,'method':'json_mode'})
-    metadata['code_files']={str(p.relative_to(root)):digest(p) for p in [*root.glob('*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json'),*root.glob('evals/*.py')]}
+    metadata['code_files']={str(p.relative_to(root)):digest(p) for p in [*root.glob('backend/**/*.py'),*root.glob('prompts/*.md'),*root.glob('config/*.json'),*root.glob('evals/*.py')]}
     metadata['code_sha256']=hashlib.sha256(json.dumps(metadata['code_files'],sort_keys=True).encode()).hexdigest()
     report={'run_id':directory.name,'repeat':1,'manifest':metadata,'results':[],'source_unchanged':None}
     def save():
@@ -71,7 +71,7 @@ def main():
             for case in cases:
                 from contextlib import nullcontext
                 from unittest.mock import patch
-                import langgraph_supervisor_1 as project
+                import backend.agent.langgraph_supervisor_1 as project
                 fault_calls=[]
                 original_order=project.order_service.get_order
                 def fail_once(**kwargs):

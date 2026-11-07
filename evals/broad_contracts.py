@@ -23,7 +23,7 @@ def score_broad(spec,trace,fixture,history):
     if b.get('no_redundant_product_tools'):add('no_redundant_product_tools',not any(t['name'] in {'get_product_info','search_products','query_products'} for t in tools))
     if b.get('expected_tool_failure'):add('injected_failure_observed',any(t.get('success') is False for t in tools))
     if b.get('scope_refusal'):
-        from conversation_replies import REPLIES
+        from backend.conversation.conversation_replies import REPLIES
         add('scope_refusal',REPLIES['out_of_scope'] in answer)
     if b.get('clarify'):
         wording=bool(re.search(r'请.{0,30}(?:提供|说明|选择|确认|告诉)|需要确认|哪(?:个|件|一|款)|条件.{0,12}(?:矛盾|冲突)|无法同时成立|是否|几件|多少件',answer))
@@ -50,7 +50,7 @@ def score_broad(spec,trace,fixture,history):
         add('overview_categories',bool(rows) and actual==expected,{'expected':sorted(expected),'actual':sorted(actual)})
         with fixture.connect() as c:
             counts=c.execute('SELECT product_subcategory_id,count(*) AS n FROM product_catalog GROUP BY 1').fetchall()
-        from catalog_filters import CATEGORY_SUBCATEGORIES
+        from backend.catalog.catalog_filters import CATEGORY_SUBCATEGORIES
         refs={k:sum(r['n'] for r in counts if r['product_subcategory_id'] in v) for k,v in CATEGORY_SUBCATEGORIES.items()}
         add('overview_counts',bool(rows) and all(r['count']==refs[r['category']] for r in rows[-1].get('categories',[])))
         unknown=sum(r['n'] for r in counts if r['product_subcategory_id'] is None)
