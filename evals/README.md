@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | 当前基线静态校验 | `python -m evals.run_current_evaluation --validate` | 80 个场景、95 轮的定义和契约，无需调用模型 |
 | 当前基线实测 | `python -m evals.run_current_evaluation --live` | 独立 SQL、权限和业务结果、AgentEvals 执行轨迹及 OpenEvals 回答评审 |
+| 动态模拟用户 | `python -m evals.dynamic_runner --live --repeat 5` | 20个目标驱动场景，动态追问、模拟用户有效性、SQL事实与完整任务结果 |
 | 追加消息实测 | `python -m evals.run_inflight_answer_evaluation --live` | 7 个 HTTP/SSE 时序场景及最终答案 |
 | 条件更新专项 | `python -m evals.run_constraint_evaluation --live` | 规划字段依据、条件继承及业务结果 |
 | 范围与目录专项 | `python -m evals.scope_runner --live`、`python -m evals.catalog_query_runner --live` | 无关请求、混合任务、目录查询 |
@@ -15,6 +16,8 @@
 | 评分参考集校验 | `python -m evals.run_judge_reference` | 固定事实、金额匹配及评分参考样例 |
 
 真实调用会消耗模型额度。基线可用 `--smoke` 或 `--ids` 缩小范围。详情见 [基线规则与报告](CURRENT_EVALUATION.md)、[追加消息专项](INFLIGHT_ANSWERS.md) 和 [评分参考集](judge_reference/README.md)。
+
+动态交互的任务卡、运行方式与统计边界见[动态模拟用户评测](DYNAMIC_EVALUATION.md)。这是本项目自定义业务评测，不是官方τ-bench成绩。
 
 ## 如何验收改动
 
